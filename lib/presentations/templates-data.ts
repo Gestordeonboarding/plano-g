@@ -7,14 +7,14 @@ const defaultTheme: PresentationTheme = {
   show_logo: true,
 }
 
-function field(key: string, label: string, placeholder: string, required = false) {
-  return { key, label, type: 'text' as const, value: '', placeholder, required, max_chars: 100 }
+function field(key: string, label: string, placeholder: string, required = false): EditableField {
+  return { key, label, type: 'text', value: '', placeholder, required, max_chars: 100 }
 }
-function currencyField(key: string, label: string, placeholder = 'R$ 0,00') {
-  return { key, label, type: 'currency' as const, value: '', placeholder, required: false }
+function currencyField(key: string, label: string, placeholder = 'R$ 0,00'): EditableField {
+  return { key, label, type: 'currency', value: '', placeholder, required: false }
 }
-function textareaField(key: string, label: string, placeholder: string) {
-  return { key, label, type: 'textarea' as const, value: '', placeholder, required: false, max_chars: 500 }
+function textareaField(key: string, label: string, placeholder: string): EditableField {
+  return { key, label, type: 'textarea', value: '', placeholder, required: false, max_chars: 500 }
 }
 
 function makeSlide(id: string, type: Slide['type'], title: string, fields: EditableField[], layout: Slide['layout'] = 'centered', bg: Slide['background'] = 'dark'): Slide {
