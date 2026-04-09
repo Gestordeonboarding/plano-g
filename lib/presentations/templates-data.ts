@@ -17,7 +17,7 @@ function textareaField(key: string, label: string, placeholder: string) {
   return { key, label, type: 'textarea' as const, value: '', placeholder, required: false, max_chars: 500 }
 }
 
-function makeSlide(id: string, type: Slide['type'], title: string, fields: ReturnType<typeof field>[], layout: Slide['layout'] = 'centered', bg: Slide['background'] = 'dark'): Slide {
+function makeSlide(id: string, type: Slide['type'], title: string, fields: import('./types').EditableField[], layout: Slide['layout'] = 'centered', bg: Slide['background'] = 'dark'): Slide {
   return { id, type, title, editable_fields: fields, layout, background: bg, locked: false, visible: true }
 }
 
