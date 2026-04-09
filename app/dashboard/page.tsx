@@ -1,0 +1,159 @@
+import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
+import { formatDate, daysUntil } from '@/lib/utils'
+import Link from 'next/link'
+import { TrendingUp, Users, UserCheck, Target, Calendar } from 'lucide-react'
+
+export default async function DashboardPage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const { data: userData } = await supabase
+    .from('users')
+    .select('tenant_id, role')
+    .eq('id', user.id)
+    .single()
+
+  const u = userData as { tenant_id: string; role: string } | null
+  if (!u) redirect('/login')
+
+  const today = new Date()
+  const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOString()
+  const in30Days = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+
+  const [leadsHoje, leadesMes, consorciados, proximasAssembleias, sellers] = await Promise.all([
+    supabase.from('leads').select('id').eq('tenant_id', u.tenant_id)
+      .gte('created_at', new Date().toISOString().split('T')[0]),
+    supabase.from('leads').select('id, status').eq('tenant_id', u.tenant_id)
+      .gte('created_at', firstOfMonth),
+    supabase.from('consorciados').select('id').eq('tenant_id', u.tenant_id).eq('status', 'ativo'),
+    supabase.from('consorciados')
+      .select('id, full_name, group_number, quota_number, next_assembly_date, contemplation_score')
+      .eq('tenant_id', u.tenant_id)
+      .not('next_assembly_date', 'is', null)
+      .lte('next_assembly_date', in30Days)
+      .gte('next_assembly_date', today.toISOString().split('T')[0])
+      .order('next_assembly_date', { ascending: true })
+      .limit(10),
+    supabase.from('users').select('id, full_name, email').eq('tenant_id', u.tenant_id).eq('role', 'seller'),
+  ])
+
+  const totalLeadesMes = leadesMes.data?.length || 0
+  const convertidos = leadesMes.data?.filter((l: { status: string }) => l.status === 'convertido').length || 0
+  const taxa = totalLeadesMes > 0 ? ((convertidos / totalLeadesMes) * 100).toFixed(0) : '0'
+
+  const assembleias = (proximasAssembleias.data || []) as Array<{
+    id: string; full_name: string; group_number: string | null
+    quota_number: string | null; next_assembly_date: string; contemplation_score: number
+  }>
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div>
+        <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
+          Início
+        </h1>
+        <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
+          Resumo do seu escritório
+        </p>
+      </div>
+
+      {/* Cards de métricas */}
+      <div className="grid grid-cols-4 gap-4">
+        {[
+          { icon: <TrendingUp size={18} />, label: 'Leads hoje', value: leadsHoje.data?.length || 0 },
+          { icon: <Users size={18} />, label: 'Leads no mês', value: totalLeadesMes },
+          { icon: <UserCheck size={18} />, label: 'Consorciados ativos', value: consorciados.data?.length || 0 },
+          { icon: <Target size={18} />, label: 'Conversão do mês', value: `${taxa}%` },
+        ].map((m) => (
+          <div key={m.label} className="card-pg p-5 flex items-center gap-4">
+            <div
+              className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
+              style={{ backgroundColor: 'rgba(0,212,200,0.12)', color: 'var(--accent)' }}
+            >
+              {m.icon}
+            </div>
+            <div>
+              <p className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
+                {m.value}
+              </p>
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{m.label}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Próximas assembleias */}
+      <div className="card-pg p-5">
+        <div className="flex items-center gap-2 mb-4">
+          <Calendar size={16} style={{ color: 'var(--accent)' }} />
+          <h2 className="font-semibold" style={{ color: 'var(--text-primary)' }}>
+            Próximas assembleias (30 dias)
+          </h2>
+          <span className="ml-auto text-xs px-2 py-0.5 rounded-full font-semibold"
+            style={{ backgroundColor: 'rgba(0,212,200,0.15)', color: 'var(--accent)' }}>
+            {assembleias.length}
+          </span>
+        </div>
+
+        {assembleias.length === 0 ? (
+          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+            Nenhuma assembleia nos próximos 30 dias.
+          </p>
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr style={{ color: 'var(--text-muted)' }}>
+                {['Consorciado', 'Grupo/Cota', 'Data', 'Em dias', 'Score'].map((h) => (
+                  <th key={h} className="text-left pb-2 font-medium">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {assembleias.map((a) => {
+                const dias = daysUntil(a.next_assembly_date)
+                const score = a.contemplation_score
+                return (
+                  <tr key={a.id} style={{ borderTop: '1px solid var(--border-color)' }}>
+                    <td className="py-2.5">
+                      <Link href={`/dashboard/consorciados/${a.id}`}
+                        className="font-medium hover:underline" style={{ color: 'var(--text-primary)' }}>
+                        {a.full_name}
+                      </Link>
+                    </td>
+                    <td className="py-2.5" style={{ color: 'var(--text-secondary)' }}>
+                      {a.group_number || '—'}/{a.quota_number || '—'}
+                    </td>
+                    <td className="py-2.5" style={{ color: 'var(--text-secondary)' }}>
+                      {formatDate(a.next_assembly_date)}
+                    </td>
+                    <td className="py-2.5">
+                      <span
+                        className="text-xs px-2 py-0.5 rounded-full font-semibold"
+                        style={dias !== null && dias <= 7
+                          ? { backgroundColor: 'rgba(255,92,92,0.15)', color: 'var(--danger)' }
+                          : { backgroundColor: 'rgba(0,212,200,0.15)', color: 'var(--accent)' }}
+                      >
+                        {dias !== null ? `${dias}d` : '—'}
+                      </span>
+                    </td>
+                    <td className="py-2.5">
+                      <ScoreBadge score={score} />
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function ScoreBadge({ score }: { score: number }) {
+  if (score >= 70) return <span className="badge-score-high">Alto {score}</span>
+  if (score >= 40) return <span className="badge-score-mid">Médio {score}</span>
+  return <span className="badge-score-low">Baixo {score}</span>
+}
