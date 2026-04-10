@@ -9,9 +9,6 @@ const supabaseAdmin = createAdmin(
   { auth: { autoRefreshToken: false, persistSession: false } }
 )
 
-const EVO_URL = process.env.EVOLUTION_API_URL!
-const EVO_KEY = process.env.EVOLUTION_API_KEY!
-
 export async function GET() {
   try {
     const supabase = await createClient()
@@ -19,47 +16,38 @@ export async function GET() {
     if (!user) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
     const tenantId = await getViewingTenantId()
-    if (!tenantId) return NextResponse.json({ error: 'Tenant não encontrado' }, { status: 403 })
+    if (!tenantId) return NextResponse.json({ status: 'disconnected', phone: null })
 
     const { data: tenant } = await supabaseAdmin
       .from('tenants')
-      .select('whatsapp_instance, whatsapp_phone')
+      .select('zapi_instance_id, zapi_token, whatsapp_phone')
       .eq('id', tenantId)
       .single()
 
-    const t = tenant as { whatsapp_instance: string | null; whatsapp_phone: string | null } | null
-    if (!t?.whatsapp_instance) {
-      return NextResponse.json({ status: 'disconnected', phone: null })
+    const t = tenant as {
+      zapi_instance_id: string | null
+      zapi_token: string | null
+      whatsapp_phone: string | null
+    } | null
+
+    if (!t?.zapi_instance_id || !t?.zapi_token) {
+      return NextResponse.json({ status: 'not_configured', phone: null })
     }
 
-    const res = await fetch(`${EVO_URL}/instance/connectionState/${t.whatsapp_instance}`, {
-      headers: { apikey: EVO_KEY },
-    })
+    const res = await fetch(
+      `https://api.z-api.io/instances/${t.zapi_instance_id}/token/${t.zapi_token}/status`,
+      { headers: { 'Client-Token': t.zapi_token } }
+    )
 
     if (!res.ok) return NextResponse.json({ status: 'disconnected', phone: null })
 
-    const data = await res.json() as { instance?: { state?: string } }
-    const state = data.instance?.state
+    const data = await res.json() as { connected?: boolean; session?: string; smartphoneConnected?: boolean }
 
-    if (state === 'open') {
-      // Buscar número conectado
-      const profileRes = await fetch(`${EVO_URL}/instance/fetchInstances`, {
-        headers: { apikey: EVO_KEY },
-      })
-      const instances = await profileRes.json() as Array<{
-        instance: { instanceName: string; status: string; owner?: string }
-      }>
-      const inst = instances.find((i) => i.instance.instanceName === t.whatsapp_instance)
-      const phone = inst?.instance?.owner?.replace('@s.whatsapp.net', '') || null
-
-      if (phone && phone !== t.whatsapp_phone) {
-        await supabaseAdmin.from('tenants').update({ whatsapp_phone: phone }).eq('id', tenantId)
-      }
-
-      return NextResponse.json({ status: 'connected', phone })
+    if (data.connected) {
+      return NextResponse.json({ status: 'connected', phone: t.whatsapp_phone })
     }
 
-    return NextResponse.json({ status: state || 'disconnected', phone: null })
+    return NextResponse.json({ status: 'disconnected', phone: null })
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 })
   }

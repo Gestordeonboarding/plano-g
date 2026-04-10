@@ -2,14 +2,14 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { CheckCircle, Wifi, WifiOff, Plus, UserX, UserCheck } from 'lucide-react'
+import { Wifi, Plus, UserX, UserCheck } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { formatDate } from '@/lib/utils'
 
 interface Tenant {
   id: string; name: string; slug: string; primary_color: string | null
-  plan: string | null; is_active: boolean; evolution_api_url: string | null
-  evolution_api_key: string | null
+  plan: string | null; is_active: boolean; zapi_instance_id: string | null
+  zapi_token: string | null; whatsapp_phone: string | null
 }
 
 interface Seller {
@@ -33,14 +33,12 @@ export default function EditFranqueadoForm({
     primary_color: t.primary_color || '#00D4C8',
     plan: t.plan || 'profissional',
     is_active: t.is_active,
-    evolution_api_url: t.evolution_api_url || '',
-    evolution_api_key: t.evolution_api_key || '',
+    zapi_instance_id: t.zapi_instance_id || '',
+    zapi_token: t.zapi_token || '',
   })
 
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
-  const [wifiStatus, setWifiStatus] = useState<'idle' | 'ok' | 'fail'>('idle')
-  const [wifiLoading, setWifiLoading] = useState(false)
 
   // Novo vendedor
   const [showNewSeller, setShowNewSeller] = useState(false)
@@ -56,21 +54,6 @@ export default function EditFranqueadoForm({
     setSaving(false)
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
-  }
-
-  async function testWhatsApp() {
-    setWifiLoading(true)
-    setWifiStatus('idle')
-    try {
-      const res = await fetch(`${form.evolution_api_url}/instance/fetchInstances`, {
-        headers: { apikey: form.evolution_api_key },
-      })
-      const data = await res.json()
-      setWifiStatus(res.ok && Array.isArray(data) && data.length > 0 ? 'ok' : 'fail')
-    } catch {
-      setWifiStatus('fail')
-    }
-    setWifiLoading(false)
   }
 
   async function handleDeactivate() {
@@ -187,47 +170,60 @@ export default function EditFranqueadoForm({
         </div>
       </form>
 
-      {/* WhatsApp */}
+      {/* WhatsApp Z-API */}
       <div className="card-pg p-6 flex flex-col gap-4">
-        <h2 className="font-semibold" style={{ color: 'var(--text-primary)' }}>
-          Integração WhatsApp (Evolution API)
-        </h2>
-        <Field label="URL da instância">
-          <input
-            className="input-pg"
-            placeholder="https://api.exemplo.com"
-            value={form.evolution_api_url}
-            onChange={(e) => setForm((f) => ({ ...f, evolution_api_url: e.target.value }))}
-          />
-        </Field>
-        <Field label="API Key">
-          <input
-            className="input-pg"
-            placeholder="sua-api-key"
-            value={form.evolution_api_key}
-            onChange={(e) => setForm((f) => ({ ...f, evolution_api_key: e.target.value }))}
-          />
-        </Field>
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={testWhatsApp}
-            disabled={wifiLoading || !form.evolution_api_url}
-            className="btn-outline text-sm disabled:opacity-50"
-          >
-            {wifiLoading ? 'Testando...' : 'Testar conexão'}
-          </button>
-          {wifiStatus === 'ok' && (
-            <span className="flex items-center gap-1 text-sm" style={{ color: 'var(--accent)' }}>
-              <Wifi size={14} /> Conectado
-            </span>
-          )}
-          {wifiStatus === 'fail' && (
-            <span className="flex items-center gap-1 text-sm" style={{ color: 'var(--danger)' }}>
-              <WifiOff size={14} /> Sem conexão
-            </span>
-          )}
+        <div>
+          <h2 className="font-semibold" style={{ color: 'var(--text-primary)' }}>
+            WhatsApp — Z-API
+          </h2>
+          <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+            Configure a instância Z-API deste franqueado. O cliente vai escanear o QR Code nas Configurações do sistema.
+          </p>
         </div>
+        {t.whatsapp_phone && (
+          <div className="flex items-center gap-2 text-sm px-3 py-2 rounded-lg"
+            style={{ backgroundColor: 'rgba(37,211,102,0.08)', color: '#25D366' }}>
+            <Wifi size={14} />
+            Conectado: +{t.whatsapp_phone}
+          </div>
+        )}
+        <Field label="ID da Instância (Instance ID)">
+          <input
+            className="input-pg"
+            placeholder="Ex: 3E12FA16850140EC05F02242E60F9610"
+            value={form.zapi_instance_id}
+            onChange={(e) => setForm((f) => ({ ...f, zapi_instance_id: e.target.value }))}
+          />
+        </Field>
+        <Field label="Token da Instância">
+          <input
+            className="input-pg"
+            placeholder="Ex: FECEDCB366352AD4D41382EC"
+            value={form.zapi_token}
+            onChange={(e) => setForm((f) => ({ ...f, zapi_token: e.target.value }))}
+          />
+        </Field>
+        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+          Encontre essas informações em <strong>z-api.io → Instâncias Web → clique na instância → Credenciais</strong>
+        </p>
+        <button
+          type="button"
+          onClick={async () => {
+            setSaving(true)
+            const supabase = createClient()
+            await supabase.from('tenants').update({
+              zapi_instance_id: form.zapi_instance_id,
+              zapi_token: form.zapi_token,
+            }).eq('id', t.id)
+            setSaving(false)
+            setSaved(true)
+            setTimeout(() => setSaved(false), 2000)
+          }}
+          disabled={saving}
+          className="btn-primary text-sm w-fit disabled:opacity-50"
+        >
+          {saving ? 'Salvando...' : saved ? '✓ Salvo!' : 'Salvar credenciais Z-API'}
+        </button>
       </div>
 
       {/* Vendedores */}

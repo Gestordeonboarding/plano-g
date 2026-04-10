@@ -9,10 +9,6 @@ const supabaseAdmin = createAdmin(
   { auth: { autoRefreshToken: false, persistSession: false } }
 )
 
-const EVO_URL = process.env.EVOLUTION_API_URL!
-const EVO_KEY = process.env.EVOLUTION_API_KEY!
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL!
-
 export async function GET() {
   try {
     const supabase = await createClient()
@@ -24,53 +20,34 @@ export async function GET() {
 
     const { data: tenant } = await supabaseAdmin
       .from('tenants')
-      .select('slug, whatsapp_instance')
+      .select('zapi_instance_id, zapi_token')
       .eq('id', tenantId)
       .single()
 
-    if (!tenant) return NextResponse.json({ error: 'Tenant não encontrado' }, { status: 404 })
+    const t = tenant as { zapi_instance_id: string | null; zapi_token: string | null } | null
 
-    const t = tenant as { slug: string; whatsapp_instance: string | null }
-    const instanceName = t.whatsapp_instance || `pg-${t.slug}`
-
-    // Tenta criar a instância (ignora erro se já existe)
-    await fetch(`${EVO_URL}/instance/create`, {
-      method: 'POST',
-      headers: { apikey: EVO_KEY, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        instanceName,
-        qrcode: true,
-        integration: 'WHATSAPP-BAILEYS',
-        webhook: {
-          url: `${APP_URL}/api/whatsapp/webhook`,
-          byEvents: true,
-          base64: false,
-          events: ['MESSAGES_UPSERT', 'CONNECTION_UPDATE'],
-        },
-      }),
-    })
-
-    // Busca QR Code
-    const connectRes = await fetch(`${EVO_URL}/instance/connect/${instanceName}`, {
-      headers: { apikey: EVO_KEY },
-    })
-
-    if (!connectRes.ok) {
-      return NextResponse.json({ error: 'Falha ao gerar QR Code. Verifique a Evolution API.' }, { status: 502 })
+    if (!t?.zapi_instance_id || !t?.zapi_token) {
+      return NextResponse.json({
+        error: 'WhatsApp não configurado. Peça ao administrador para configurar a instância Z-API deste escritório.',
+      }, { status: 422 })
     }
 
-    const connectData = await connectRes.json() as { code?: string; base64?: string }
+    const res = await fetch(
+      `https://api.z-api.io/instances/${t.zapi_instance_id}/token/${t.zapi_token}/qr-code`,
+      { headers: { 'Client-Token': t.zapi_token } }
+    )
 
-    // Salva instance name no tenant
-    await supabaseAdmin
-      .from('tenants')
-      .update({ whatsapp_instance: instanceName })
-      .eq('id', tenantId)
+    if (!res.ok) {
+      return NextResponse.json({ error: 'Falha ao gerar QR Code' }, { status: 502 })
+    }
 
-    return NextResponse.json({
-      qrcode: connectData.base64 || connectData.code,
-      instanceName,
-    })
+    const data = await res.json() as { value?: string; error?: string }
+
+    if (!data.value) {
+      return NextResponse.json({ error: data.error || 'QR Code não disponível' }, { status: 502 })
+    }
+
+    return NextResponse.json({ qrcode: data.value })
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 })
   }
