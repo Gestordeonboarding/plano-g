@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdmin } from '@supabase/supabase-js'
-import { getViewingTenantId } from '@/lib/supabase/get-tenant'
 
 const supabaseAdmin = createAdmin(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -15,26 +14,23 @@ export async function GET() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
-    const tenantId = await getViewingTenantId()
-    if (!tenantId) return NextResponse.json({ error: 'Tenant não encontrado' }, { status: 403 })
-
-    const { data: tenant } = await supabaseAdmin
-      .from('tenants')
+    const { data: userData } = await supabaseAdmin
+      .from('users')
       .select('zapi_instance_id, zapi_token')
-      .eq('id', tenantId)
+      .eq('id', user.id)
       .single()
 
-    const t = tenant as { zapi_instance_id: string | null; zapi_token: string | null } | null
+    const u = userData as { zapi_instance_id: string | null; zapi_token: string | null } | null
 
-    if (!t?.zapi_instance_id || !t?.zapi_token) {
+    if (!u?.zapi_instance_id || !u?.zapi_token) {
       return NextResponse.json({
-        error: 'WhatsApp não configurado. Peça ao administrador para configurar a instância Z-API deste escritório.',
+        error: 'Sua instância WhatsApp ainda não foi configurada. Entre em contato com o administrador.',
       }, { status: 422 })
     }
 
     const res = await fetch(
-      `https://api.z-api.io/instances/${t.zapi_instance_id}/token/${t.zapi_token}/qr-code`,
-      { headers: { 'Client-Token': t.zapi_token } }
+      `https://api.z-api.io/instances/${u.zapi_instance_id}/token/${u.zapi_token}/qr-code`,
+      { headers: { 'Client-Token': u.zapi_token } }
     )
 
     if (!res.ok) {

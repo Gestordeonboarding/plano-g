@@ -276,47 +276,93 @@ export default function EditFranqueadoForm({
           <table className="w-full text-sm">
             <thead>
               <tr style={{ color: 'var(--text-muted)' }}>
-                {['Nome', 'Email', 'Cargo', 'Status', ''].map((h) => (
+                {['Nome', 'Email', 'Cargo', 'Status', 'Ações'].map((h) => (
                   <th key={h} className="text-left pb-2 font-medium">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {sellerList.map((s) => (
-                <tr key={s.id} style={{ borderTop: '1px solid var(--border-color)' }}>
-                  <td className="py-2.5 font-medium" style={{ color: 'var(--text-primary)' }}>
-                    {s.full_name || '—'}
-                  </td>
-                  <td className="py-2.5" style={{ color: 'var(--text-secondary)' }}>{s.email}</td>
-                  <td className="py-2.5" style={{ color: 'var(--text-secondary)' }}>
-                    {s.role === 'tenant_admin' ? 'Admin' : 'Vendedor'}
-                  </td>
-                  <td className="py-2.5">
-                    <span
-                      className="text-xs px-2 py-0.5 rounded-full font-semibold"
-                      style={s.is_active
-                        ? { backgroundColor: 'rgba(0,212,200,0.15)', color: 'var(--accent)' }
-                        : { backgroundColor: 'rgba(255,92,92,0.15)', color: 'var(--danger)' }}
-                    >
-                      {s.is_active ? 'Ativo' : 'Inativo'}
-                    </span>
-                  </td>
-                  <td className="py-2.5 text-right">
-                    <button
-                      onClick={() => toggleSeller(s.id, s.is_active)}
-                      className="text-xs hover:underline"
-                      style={{ color: s.is_active ? 'var(--danger)' : 'var(--accent)' }}
-                    >
-                      {s.is_active ? 'Desativar' : 'Ativar'}
-                    </button>
-                  </td>
-                </tr>
+                <SellerRow key={s.id} s={s} onToggle={toggleSeller} />
               ))}
             </tbody>
           </table>
         )}
       </div>
     </div>
+  )
+}
+
+function SellerRow({ s, onToggle }: { s: Seller; onToggle: (id: string, active: boolean) => void }) {
+  const [expanded, setExpanded] = useState(false)
+  const [zapiId, setZapiId] = useState('')
+  const [zapiToken, setZapiToken] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  async function saveZapi() {
+    setSaving(true)
+    const supabase = createClient()
+    await supabase.from('users').update({ zapi_instance_id: zapiId, zapi_token: zapiToken }).eq('id', s.id)
+    setSaving(false)
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
+  }
+
+  return (
+    <>
+      <tr style={{ borderTop: '1px solid var(--border-color)' }}>
+        <td className="py-2.5 font-medium" style={{ color: 'var(--text-primary)' }}>
+          {s.full_name || '—'}
+        </td>
+        <td className="py-2.5" style={{ color: 'var(--text-secondary)' }}>{s.email}</td>
+        <td className="py-2.5" style={{ color: 'var(--text-secondary)' }}>
+          {s.role === 'tenant_admin' ? 'Admin' : 'Vendedor'}
+        </td>
+        <td className="py-2.5">
+          <span className="text-xs px-2 py-0.5 rounded-full font-semibold"
+            style={s.is_active
+              ? { backgroundColor: 'rgba(0,212,200,0.15)', color: 'var(--accent)' }
+              : { backgroundColor: 'rgba(255,92,92,0.15)', color: 'var(--danger)' }}>
+            {s.is_active ? 'Ativo' : 'Inativo'}
+          </span>
+        </td>
+        <td className="py-2.5 text-right">
+          <div className="flex items-center gap-3 justify-end">
+            <button onClick={() => setExpanded(!expanded)}
+              className="text-xs hover:underline" style={{ color: 'var(--accent)' }}>
+              WhatsApp
+            </button>
+            <button onClick={() => onToggle(s.id, s.is_active)}
+              className="text-xs hover:underline"
+              style={{ color: s.is_active ? 'var(--danger)' : 'var(--accent)' }}>
+              {s.is_active ? 'Desativar' : 'Ativar'}
+            </button>
+          </div>
+        </td>
+      </tr>
+      {expanded && (
+        <tr style={{ borderTop: '1px solid var(--border-color)' }}>
+          <td colSpan={5} className="py-3 px-2">
+            <div className="flex flex-col gap-2 p-3 rounded-lg" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
+              <p className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
+                Instância Z-API de {s.full_name || s.email}
+              </p>
+              <div className="flex gap-2">
+                <input className="input-pg text-xs flex-1" placeholder="Instance ID"
+                  value={zapiId} onChange={(e) => setZapiId(e.target.value)} />
+                <input className="input-pg text-xs flex-1" placeholder="Token"
+                  value={zapiToken} onChange={(e) => setZapiToken(e.target.value)} />
+                <button onClick={saveZapi} disabled={saving}
+                  className="btn-primary text-xs px-3 disabled:opacity-50 whitespace-nowrap">
+                  {saving ? '...' : saved ? '✓' : 'Salvar'}
+                </button>
+              </div>
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
   )
 }
 

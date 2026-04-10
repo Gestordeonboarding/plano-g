@@ -11,58 +11,57 @@ type ZApiPayload = {
   instanceId?: string
   phone?: string
   senderName?: string
-  senderPhone?: string
-  status?: string
   type?: string
+  connected?: boolean
   text?: { message?: string }
   image?: { caption?: string }
-  connected?: boolean
 }
 
 export async function POST(request: NextRequest) {
   try {
     const payload = await request.json() as ZApiPayload
+    const { instanceId } = payload
 
-    const instanceId = payload.instanceId
     if (!instanceId) return NextResponse.json({ ok: true })
 
-    // Busca tenant pela instância Z-API
-    const { data: tenant } = await supabaseAdmin
-      .from('tenants')
-      .select('id')
+    // Busca o usuário (vendedor/admin) dono desta instância
+    const { data: userData } = await supabaseAdmin
+      .from('users')
+      .select('id, tenant_id, full_name')
       .eq('zapi_instance_id', instanceId)
       .single()
 
-    if (!tenant) return NextResponse.json({ ok: true })
+    if (!userData) return NextResponse.json({ ok: true })
 
-    const tenantId = (tenant as { id: string }).id
+    const u = userData as { id: string; tenant_id: string; full_name: string | null }
 
-    // Evento de conexão
+    // Evento de conexão — salva o número conectado
     if (payload.connected === true && payload.phone) {
       await supabaseAdmin
-        .from('tenants')
+        .from('users')
         .update({ whatsapp_phone: payload.phone })
-        .eq('id', tenantId)
+        .eq('id', u.id)
       return NextResponse.json({ ok: true })
     }
 
-    // Mensagem recebida — cria lead automaticamente
+    // Mensagem recebida → cria lead automaticamente
     if (payload.type === 'ReceivedCallback' && payload.phone) {
       const phone = payload.phone.replace(/\D/g, '')
       const contactName = payload.senderName || phone
       const message = payload.text?.message || payload.image?.caption || ''
 
-      // Verifica se já existe lead com esse número
+      // Verifica se já existe lead com esse número neste tenant
       const { data: existing } = await supabaseAdmin
         .from('leads')
         .select('id')
-        .eq('tenant_id', tenantId)
+        .eq('tenant_id', u.tenant_id)
         .eq('phone', phone)
         .single()
 
       if (!existing) {
         await supabaseAdmin.from('leads').insert({
-          tenant_id: tenantId,
+          tenant_id: u.tenant_id,
+          seller_id: u.id,
           full_name: contactName,
           phone,
           source: 'whatsapp',
