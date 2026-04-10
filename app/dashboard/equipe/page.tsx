@@ -1,21 +1,28 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { formatDate } from '@/lib/utils'
+import { getViewingTenantId } from '@/lib/supabase/get-tenant'
 import NovoVendedorForm from './NovoVendedorForm'
+import { createClient as createAdmin } from '@supabase/supabase-js'
+
+const supabaseAdmin = createAdmin(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  { auth: { autoRefreshToken: false, persistSession: false } }
+)
 
 export default async function EquipePage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: userData } = await supabase.from('users').select('tenant_id, role').eq('id', user.id).single()
-  const u = userData as { tenant_id: string; role: string } | null
-  if (!u || u.role !== 'tenant_admin') redirect('/dashboard')
+  const tenantId = await getViewingTenantId()
+  if (!tenantId) redirect('/dashboard')
 
-  const { data } = await supabase
+  const { data } = await supabaseAdmin
     .from('users')
     .select('id, full_name, email, role, is_active, created_at')
-    .eq('tenant_id', u.tenant_id)
+    .eq('tenant_id', tenantId)
     .order('created_at', { ascending: false })
 
   const sellers = (data || []) as Array<{
@@ -32,7 +39,7 @@ export default async function EquipePage() {
         </p>
       </div>
 
-      <NovoVendedorForm tenantId={u.tenant_id} />
+      <NovoVendedorForm tenantId={tenantId} />
 
       <div className="card-pg overflow-hidden">
         <table className="w-full text-sm">

@@ -2,19 +2,19 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { Zap } from 'lucide-react'
 import AutomacoesClient, { AutomationRule } from './AutomacoesClient'
+import { getViewingTenantId } from '@/lib/supabase/get-tenant'
 
 export default async function AutomacoesPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: userData } = await supabase.from('users').select('tenant_id').eq('id', user.id).single()
-  const u = userData as { tenant_id: string } | null
-  if (!u) redirect('/login')
+  const tenantId = await getViewingTenantId()
+  if (!tenantId) redirect('/login')
 
   const [rulesRes, tenantRes] = await Promise.all([
-    supabase.from('automation_rules').select('*').eq('tenant_id', u.tenant_id).order('created_at', { ascending: false }),
-    supabase.from('tenants').select('evolution_api_url').eq('id', u.tenant_id).single(),
+    supabase.from('automation_rules').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false }),
+    supabase.from('tenants').select('evolution_api_url').eq('id', tenantId).single(),
   ])
 
   const rules = (rulesRes.data || []) as unknown as AutomationRule[]

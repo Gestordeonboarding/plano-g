@@ -2,21 +2,21 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import ImportWizard from '@/components/importar/ImportWizard'
 import { formatDate } from '@/lib/utils'
+import { getViewingTenantId } from '@/lib/supabase/get-tenant'
 
 export default async function ImportarPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: userData } = await supabase.from('users').select('tenant_id').eq('id', user.id).single()
-  const u = userData as { tenant_id: string } | null
-  if (!u) redirect('/login')
+  const tenantId = await getViewingTenantId()
+  if (!tenantId) redirect('/login')
 
   // Histórico das últimas importações
   const { data: imports } = await supabase
     .from('spreadsheet_imports')
     .select('id, created_at, file_name, rows_processed, rows_success, rows_error, status, administrator')
-    .eq('tenant_id', u.tenant_id)
+    .eq('tenant_id', tenantId)
     .order('created_at', { ascending: false })
     .limit(5)
 
@@ -37,7 +37,7 @@ export default async function ImportarPage() {
         </p>
       </div>
 
-      <ImportWizard tenantId={u.tenant_id} />
+      <ImportWizard tenantId={tenantId} />
 
       {/* Histórico */}
       {history.length > 0 && (

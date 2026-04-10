@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { formatCurrency } from '@/lib/utils'
+import { getViewingTenantId } from '@/lib/supabase/get-tenant'
 import { BarChart3, TrendingUp, Users, UserCheck, Target, MessageCircle, Eye, Presentation } from 'lucide-react'
 
 export default async function RelatoriosPage() {
@@ -8,9 +9,8 @@ export default async function RelatoriosPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: userData } = await supabase.from('users').select('tenant_id, role').eq('id', user.id).single()
-  const u = userData as { tenant_id: string; role: string } | null
-  if (!u) redirect('/login')
+  const tenantId = await getViewingTenantId()
+  if (!tenantId) redirect('/login')
 
   const today = new Date()
   const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOString()
@@ -30,40 +30,40 @@ export default async function RelatoriosPage() {
     // Todos os leads (sem limite — para análise de funil)
     supabase.from('leads')
       .select('id, status, created_at, qualification_score, asset_type, source, seller_id')
-      .eq('tenant_id', u.tenant_id),
+      .eq('tenant_id', tenantId),
 
     // Leads deste mês
     supabase.from('leads')
       .select('id, status, qualification_score, seller_id')
-      .eq('tenant_id', u.tenant_id)
+      .eq('tenant_id', tenantId)
       .gte('created_at', firstOfMonth),
 
     // Leads últimos 6 meses para gráfico
     supabase.from('leads')
       .select('id, status, created_at')
-      .eq('tenant_id', u.tenant_id)
+      .eq('tenant_id', tenantId)
       .gte('created_at', firstOf6MonthsAgo),
 
     // Consorciados
     supabase.from('consorciados')
       .select('id, status, credit_value, contemplation_score, administrator, created_at')
-      .eq('tenant_id', u.tenant_id),
+      .eq('tenant_id', tenantId),
 
     // Apresentações
     supabase.from('presentations')
       .select('id, status, view_count, created_at')
-      .eq('tenant_id', u.tenant_id),
+      .eq('tenant_id', tenantId),
 
     // WhatsApp enviadas este mês
     supabase.from('whatsapp_messages')
       .select('id, status')
-      .eq('tenant_id', u.tenant_id)
+      .eq('tenant_id', tenantId)
       .gte('sent_at', firstOfMonth),
 
     // Vendedores
     supabase.from('users')
       .select('id, full_name')
-      .eq('tenant_id', u.tenant_id)
+      .eq('tenant_id', tenantId)
       .eq('role', 'seller'),
   ])
 
