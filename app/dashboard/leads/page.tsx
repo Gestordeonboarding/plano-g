@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Plus } from 'lucide-react'
 import { formatCurrency, formatPhone } from '@/lib/utils'
+import { getViewingTenantId } from '@/lib/supabase/get-tenant'
 
 const COLUNAS = [
   { key: 'novo', label: 'Novo' },
@@ -31,9 +32,10 @@ export default async function LeadsPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: userData } = await supabase.from('users').select('tenant_id, role').eq('id', user.id).single()
-  const u = userData as { tenant_id: string; role: string } | null
-  if (!u) redirect('/login')
+  const tenantId = await getViewingTenantId()
+  if (!tenantId) redirect('/login')
+  const { data: userData } = await supabase.from('users').select('role').eq('id', user.id).single()
+  const u = { tenant_id: tenantId, role: (userData as { role: string } | null)?.role || 'tenant_admin' }
 
   const query = supabase
     .from('leads')

@@ -3,20 +3,17 @@ import { redirect } from 'next/navigation'
 import { formatDate, daysUntil } from '@/lib/utils'
 import Link from 'next/link'
 import { TrendingUp, Users, UserCheck, Target, Calendar } from 'lucide-react'
+import { getViewingTenantId } from '@/lib/supabase/get-tenant'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: userData } = await supabase
-    .from('users')
-    .select('tenant_id, role')
-    .eq('id', user.id)
-    .single()
+  const tenantId = await getViewingTenantId()
+  if (!tenantId) redirect('/login')
 
-  const u = userData as { tenant_id: string; role: string } | null
-  if (!u) redirect('/login')
+  const u = { tenant_id: tenantId, role: 'tenant_admin' }
 
   const today = new Date()
   const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOString()
