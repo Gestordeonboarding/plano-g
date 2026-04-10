@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import WhatsAppConnect from '../configuracoes/WhatsAppConnect'
+import ZApiSetup from './ZApiSetup'
 
 export default async function WhatsAppPage() {
   const supabase = await createClient()
@@ -27,17 +28,10 @@ export default async function WhatsAppPage() {
         </p>
       </div>
 
-      {!isConfigured ? (
-        <div className="card-pg p-6 flex flex-col items-center gap-3 text-center">
-          <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
-            Sua instância WhatsApp ainda não foi ativada
-          </p>
-          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-            Entre em contato com o administrador do seu escritório para ativar o WhatsApp na sua conta.
-          </p>
-        </div>
-      ) : (
+      {isConfigured ? (
         <WhatsAppConnect initialPhone={u?.whatsapp_phone || null} />
+      ) : (
+        <ZApiSetup userId={user.id} />
       )}
 
       <div className="card-pg p-5">
@@ -46,10 +40,10 @@ export default async function WhatsAppPage() {
         </h2>
         <div className="flex flex-col gap-3">
           {[
-            { n: '1', t: 'Conecte seu WhatsApp', d: 'Escaneie o QR Code com seu celular' },
-            { n: '2', t: 'Receba contatos', d: 'Quem te mandar mensagem vira lead automaticamente' },
-            { n: '3', t: 'Gerencie no Kanban', d: 'Os leads aparecem na aba Leads para você acompanhar' },
-            { n: '4', t: 'Gerente acompanha tudo', d: 'O administrador do escritório vê os leads de toda a equipe' },
+            { n: '1', t: 'Configure sua instância Z-API', d: 'Insira o Instance ID e Token da sua conta Z-API' },
+            { n: '2', t: 'Conecte seu WhatsApp', d: 'Escaneie o QR Code com seu celular' },
+            { n: '3', t: 'Receba contatos', d: 'Quem te mandar mensagem vira lead automaticamente' },
+            { n: '4', t: 'Gerencie no Kanban', d: 'Os leads aparecem na aba Leads para você acompanhar' },
           ].map((item) => (
             <div key={item.n} className="flex items-start gap-3">
               <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 mt-0.5"
