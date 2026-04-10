@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
-import { Users, TrendingUp, AlertTriangle, ArrowRight } from 'lucide-react'
+import { Users, TrendingUp, AlertTriangle, ArrowRight, ShieldCheck, UserCircle, Store, Contact } from 'lucide-react'
 import { daysSince, formatDate } from '@/lib/utils'
 
 export default async function AdminPage() {
@@ -34,6 +34,75 @@ export default async function AdminPage() {
         <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
           Painel consolidado de toda a operação
         </p>
+      </div>
+
+      {/* Acessos Rápidos */}
+      <div className="card-pg p-5">
+        <h2 className="font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>
+          Acessos Rápidos — 4 Interfaces
+        </h2>
+        <div className="grid grid-cols-2 gap-3">
+          <a
+            href="/admin"
+            className="flex items-center gap-3 p-4 rounded-lg border transition-all hover:border-[var(--accent)]"
+            style={{ borderColor: 'var(--accent)', backgroundColor: 'rgba(0,212,200,0.06)' }}
+          >
+            <ShieldCheck size={20} style={{ color: 'var(--accent)' }} />
+            <div>
+              <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Agência (você)</p>
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>/admin — visão consolidada</p>
+            </div>
+          </a>
+          <a
+            href="/dashboard"
+            target="_blank"
+            className="flex items-center gap-3 p-4 rounded-lg border transition-all hover:border-[var(--accent)]"
+            style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--bg-secondary)' }}
+          >
+            <Store size={20} style={{ color: 'var(--text-secondary)' }} />
+            <div>
+              <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Admin do Franqueado</p>
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>/dashboard — conta tenant_admin</p>
+            </div>
+          </a>
+          <a
+            href="/dashboard"
+            target="_blank"
+            className="flex items-center gap-3 p-4 rounded-lg border transition-all hover:border-[var(--accent)]"
+            style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--bg-secondary)' }}
+          >
+            <UserCircle size={20} style={{ color: 'var(--text-secondary)' }} />
+            <div>
+              <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Vendedor</p>
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>/dashboard — conta seller</p>
+            </div>
+          </a>
+          {tenants[0] ? (
+            <a
+              href={`/portal/${tenants[0].slug}`}
+              target="_blank"
+              className="flex items-center gap-3 p-4 rounded-lg border transition-all hover:border-[var(--accent)]"
+              style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--bg-secondary)' }}
+            >
+              <Contact size={20} style={{ color: 'var(--text-secondary)' }} />
+              <div>
+                <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Portal do Cliente</p>
+                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>/portal/{tenants[0].slug}</p>
+              </div>
+            </a>
+          ) : (
+            <div
+              className="flex items-center gap-3 p-4 rounded-lg border"
+              style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--bg-secondary)', opacity: 0.5 }}
+            >
+              <Contact size={20} style={{ color: 'var(--text-muted)' }} />
+              <div>
+                <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Portal do Cliente</p>
+                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Crie um franqueado primeiro</p>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Métricas */}
