@@ -3,7 +3,8 @@ import { createClient as createAdmin } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
 import { formatCurrency } from '@/lib/utils'
 import Link from 'next/link'
-import { Trophy, Clock, AlertTriangle, BarChart3, ChevronDown } from 'lucide-react'
+import { Trophy, Clock, AlertTriangle, BarChart3 } from 'lucide-react'
+import TenantSelector from './TenantSelector'
 
 const supabaseAdmin = createAdmin(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -232,19 +233,7 @@ export default async function AdminAnalyticsPage({
 
         <div className="flex items-center gap-3">
           {/* Tenant selector */}
-          <div className="relative">
-            <select
-              className="input-pg pr-8 text-sm font-medium appearance-none"
-              style={{ cursor: 'pointer' }}
-              defaultValue={tenantId}
-              onChange={(e) => { if (typeof window !== 'undefined') window.location.href = `/admin/analytics?tenant=${e.target.value}&period=${period}` }}
-            >
-              {tenants.map((t) => (
-                <option key={t.id} value={t.id}>{t.name}</option>
-              ))}
-            </select>
-            <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--text-muted)' }} />
-          </div>
+          <TenantSelector tenants={tenants} selectedId={tenantId} period={period} />
 
           {/* Period selector */}
           <div className="flex gap-1 p-1 rounded-lg" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
