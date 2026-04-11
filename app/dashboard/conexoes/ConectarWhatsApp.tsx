@@ -4,16 +4,18 @@ import { useState, useEffect, useCallback } from 'react'
 import { Smartphone, CheckCircle, RefreshCw, XCircle, Wifi, Edit2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
-type Step = 'name' | 'loading' | 'qr' | 'connected' | 'error'
+type Step = 'name' | 'creating' | 'loading' | 'qr' | 'connected' | 'error'
 
 export default function ConectarWhatsApp({
   initialPhone,
   initialName,
   tenantId,
+  hasInstance,
 }: {
   initialPhone: string | null
   initialName: string | null
   tenantId: string
+  hasInstance: boolean
 }) {
   const [step, setStep] = useState<Step>(initialPhone ? 'connected' : 'name')
   const [name, setName] = useState(initialName || '')
@@ -68,10 +70,24 @@ export default function ConectarWhatsApp({
       return
     }
     setError(null)
-    // Save name first
+
+    // Save name
     const supabase = createClient()
     await supabase.from('tenants').update({ whatsapp_name: name.trim() }).eq('id', tenantId)
 
+    // Step 1: ensure instance exists (creates automatically if needed)
+    if (!hasInstance) {
+      setStep('creating')
+      const res = await fetch('/api/whatsapp/criar-instancia', { method: 'POST' })
+      const data = await res.json() as { error?: string }
+      if (!res.ok) {
+        setStep('error')
+        setError(data.error || 'Não foi possível criar a conexão.')
+        return
+      }
+    }
+
+    // Step 2: get QR code
     setStep('loading')
     const res = await fetch('/api/whatsapp/qr')
     const data = await res.json() as { qrcode?: string; error?: string }
@@ -86,7 +102,7 @@ export default function ConectarWhatsApp({
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Card de status da conexão */}
+      {/* Connected state */}
       {step === 'connected' && (
         <div className="card-pg p-5">
           <div className="flex items-center justify-between mb-4">
@@ -134,12 +150,13 @@ export default function ConectarWhatsApp({
           <div className="flex items-center gap-2 text-xs p-3 rounded-lg"
             style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-muted)' }}>
             <CheckCircle size={13} style={{ color: 'var(--accent)' }} />
-            Todas as mensagens recebidas neste número aparecem automaticamente em <strong style={{ color: 'var(--text-secondary)' }}>Conversas</strong>
+            Todas as mensagens recebidas neste número aparecem em{' '}
+            <strong style={{ color: 'var(--text-secondary)' }}>Conversas</strong>
           </div>
         </div>
       )}
 
-      {/* Etapa: nomear e conectar */}
+      {/* Name + connect */}
       {step === 'name' && (
         <div className="card-pg p-6 flex flex-col gap-5">
           <div className="flex items-center gap-3">
@@ -169,7 +186,7 @@ export default function ConectarWhatsApp({
               onKeyDown={(e) => e.key === 'Enter' && handleConnect()}
             />
             <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-              Este nome aparece para identificar o número conectado
+              Apenas para você identificar qual número está conectado
             </p>
           </div>
 
@@ -179,7 +196,7 @@ export default function ConectarWhatsApp({
 
           <button
             onClick={handleConnect}
-            className="flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold transition-opacity"
+            className="flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold"
             style={{ backgroundColor: '#25D366', color: '#fff' }}
           >
             <Smartphone size={16} />
@@ -188,7 +205,22 @@ export default function ConectarWhatsApp({
         </div>
       )}
 
-      {/* Carregando QR */}
+      {/* Creating instance */}
+      {step === 'creating' && (
+        <div className="card-pg p-10 flex flex-col items-center gap-4">
+          <RefreshCw size={28} className="animate-spin" style={{ color: '#25D366' }} />
+          <div className="text-center">
+            <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+              Preparando sua conexão...
+            </p>
+            <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+              Isso leva apenas alguns segundos
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Loading QR */}
       {step === 'loading' && (
         <div className="card-pg p-10 flex flex-col items-center gap-4">
           <RefreshCw size={28} className="animate-spin" style={{ color: '#25D366' }} />
@@ -233,7 +265,7 @@ export default function ConectarWhatsApp({
         </div>
       )}
 
-      {/* Erro */}
+      {/* Error */}
       {step === 'error' && (
         <div className="card-pg p-8 flex flex-col items-center gap-3">
           <XCircle size={30} style={{ color: 'var(--danger)' }} />

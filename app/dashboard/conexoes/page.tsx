@@ -33,8 +33,6 @@ export default async function ConexoesPage() {
     whatsapp_name: string | null
   } | null
 
-  const isConfigured = !!t?.zapi_instance_id
-
   return (
     <div className="max-w-lg flex flex-col gap-6">
       <div>
@@ -46,32 +44,19 @@ export default async function ConexoesPage() {
         </p>
       </div>
 
-      {!isConfigured ? (
-        <div className="card-pg p-8 flex flex-col items-center gap-3 text-center">
-          <div className="w-14 h-14 rounded-full flex items-center justify-center"
-            style={{ backgroundColor: 'rgba(37,211,102,0.1)' }}>
-            <MessageSquare size={26} color="#25D366" />
-          </div>
-          <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>
-            WhatsApp ainda não ativado
-          </p>
-          <p className="text-sm max-w-xs" style={{ color: 'var(--text-muted)' }}>
-            Entre em contato com a Geometric Agency para ativar o WhatsApp do seu escritório.
-          </p>
-        </div>
-      ) : (
-        <ConectarWhatsApp
-          initialPhone={t?.whatsapp_phone || null}
-          initialName={t?.whatsapp_name || null}
-          tenantId={tenantId}
-        />
-      )}
+      {/* Always show the connect component — instance is created automatically on first connect */}
+      <ConectarWhatsApp
+        initialPhone={t?.whatsapp_phone || null}
+        initialName={t?.whatsapp_name || null}
+        tenantId={tenantId}
+        hasInstance={!!t?.zapi_instance_id}
+      />
 
-      {/* Atalho para conversas */}
+      {/* Shortcut to conversations */}
       {t?.whatsapp_phone && (
         <Link
           href="/dashboard/conversas"
-          className="card-pg p-4 flex items-center justify-between group transition-all hover:border-[var(--accent)]"
+          className="card-pg p-4 flex items-center justify-between transition-all"
           style={{ border: '1px solid var(--border-color)' }}
         >
           <div className="flex items-center gap-3">
