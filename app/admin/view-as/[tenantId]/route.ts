@@ -1,6 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
 
 export async function GET(
   request: NextRequest,
@@ -22,8 +21,10 @@ export async function GET(
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  const cookieStore = await cookies()
-  cookieStore.set('pgViewAs', tenantId, {
+  // Cookie must be set on the response object in route handlers,
+  // not via cookies() from next/headers (which is read-only in route handlers)
+  const response = NextResponse.redirect(new URL('/dashboard', request.url))
+  response.cookies.set('pgViewAs', tenantId, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
@@ -31,5 +32,5 @@ export async function GET(
     path: '/',
   })
 
-  return NextResponse.redirect(new URL('/dashboard', request.url))
+  return response
 }

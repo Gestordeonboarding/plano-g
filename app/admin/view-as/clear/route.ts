@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
 
 export async function GET(request: NextRequest) {
-  const cookieStore = await cookies()
-  cookieStore.delete('pgViewAs')
-  return NextResponse.redirect(new URL('/admin', request.url))
+  const response = NextResponse.redirect(new URL('/admin', request.url))
+  response.cookies.delete('pgViewAs')
+  return response
 }
