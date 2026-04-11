@@ -84,10 +84,20 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
 
   const { data: me } = await supabaseAdmin.from('users').select('role').eq('id', user.id).single()
   const role = (me as { role: string } | null)?.role
+
+  // Sellers don't have access to analytics
   if (role === 'seller') redirect('/dashboard')
 
+  // Agency admin without impersonation → send to admin analytics
+  if (role === 'agency_admin') {
+    const { cookies } = await import('next/headers')
+    const cookieStore = await cookies()
+    const viewAs = cookieStore.get('pgViewAs')?.value
+    if (!viewAs) redirect('/admin/analytics')
+  }
+
   const tenantId = await getViewingTenantId()
-  if (!tenantId) redirect('/dashboard')
+  if (!tenantId) redirect('/admin/analytics')
 
   const { period = 'month' } = await searchParams
   const now = new Date()
