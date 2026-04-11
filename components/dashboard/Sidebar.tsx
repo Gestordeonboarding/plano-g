@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, Users, UserCheck, Upload,
-  Zap, Settings, LogOut, UsersRound, Presentation, Code, BarChart3, Wifi, MessageSquare
+  Zap, Settings, LogOut, UsersRound, Presentation, Code, BarChart3, Wifi, MessageSquare, LineChart
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
@@ -17,6 +17,7 @@ const navItems = [
   { href: '/dashboard/apresentacoes', label: 'Apresentações', icon: Presentation, isNew: true },
   { href: '/dashboard/conexoes', label: 'Conexões', icon: Wifi },
   { href: '/dashboard/conversas', label: 'Conversas', icon: MessageSquare },
+  { href: '/dashboard/analytics', label: 'Analytics', icon: LineChart },
   { href: '/dashboard/automacoes', label: 'Automações', icon: Zap },
   { href: '/dashboard/relatorios', label: 'Relatórios', icon: BarChart3 },
   { href: '/dashboard/api', label: 'API de Leads', icon: Code },
