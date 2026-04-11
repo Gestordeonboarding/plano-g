@@ -15,16 +15,23 @@ export default function LoginPage() {
     setError(null)
 
     const supabase = createClient()
-    const { error: authError } = await supabase.auth.signInWithPassword({ email, password })
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email, password })
 
-    if (authError) {
+    if (authError || !authData.user) {
       setError('Email ou senha inválidos.')
       setLoading(false)
       return
     }
 
-    // Redireciona forçando reload completo para o middleware pegar a sessão
-    window.location.replace('/dashboard')
+    // Redireciona conforme o papel do usuário
+    const { data: userData } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', authData.user.id)
+      .single()
+
+    const role = (userData as { role: string } | null)?.role
+    window.location.replace(role === 'agency_admin' ? '/admin' : '/dashboard')
   }
 
   return (

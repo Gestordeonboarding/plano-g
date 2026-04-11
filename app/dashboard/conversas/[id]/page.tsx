@@ -12,7 +12,8 @@ const supabaseAdmin = createAdmin(
   { auth: { autoRefreshToken: false, persistSession: false } }
 )
 
-export default async function ConversaPage({ params }: { params: { id: string } }) {
+export default async function ConversaPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -24,7 +25,7 @@ export default async function ConversaPage({ params }: { params: { id: string } 
   const { data: conv } = await supabaseAdmin
     .from('whatsapp_conversations')
     .select('id, contact_phone, contact_name, tenant_id, lead_id')
-    .eq('id', params.id)
+    .eq('id', id)
     .eq('tenant_id', tenantId)
     .single()
 
@@ -42,7 +43,7 @@ export default async function ConversaPage({ params }: { params: { id: string } 
   const { data: msgs } = await supabaseAdmin
     .from('whatsapp_chat_messages')
     .select('id, direction, content, sent_at')
-    .eq('conversation_id', params.id)
+    .eq('conversation_id', id)
     .order('sent_at', { ascending: true })
 
   const messages = (msgs || []) as Array<{
@@ -56,7 +57,7 @@ export default async function ConversaPage({ params }: { params: { id: string } 
   await supabaseAdmin
     .from('whatsapp_conversations')
     .update({ unread_count: 0 })
-    .eq('id', params.id)
+    .eq('id', id)
 
   const contactName = conversation.contact_name || `+${conversation.contact_phone}`
 
@@ -93,7 +94,7 @@ export default async function ConversaPage({ params }: { params: { id: string } 
       </div>
 
       <ChatView
-        conversationId={params.id}
+        conversationId={id}
         initialMessages={messages}
         contactName={contactName}
       />
