@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, Users, UserCheck, Upload,
-  Zap, Settings, LogOut, UsersRound, Presentation, Code, BarChart3, Smartphone
+  Zap, Settings, LogOut, UsersRound, Presentation, Code, BarChart3, Wifi, MessageSquare
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
@@ -15,7 +15,8 @@ const navItems = [
   { href: '/dashboard/consorciados', label: 'Consorciados', icon: UserCheck },
   { href: '/dashboard/importar', label: 'Importar dados', icon: Upload },
   { href: '/dashboard/apresentacoes', label: 'Apresentações', icon: Presentation, isNew: true },
-  { href: '/dashboard/whatsapp', label: 'Meu WhatsApp', icon: Smartphone },
+  { href: '/dashboard/conexoes', label: 'Conexões', icon: Wifi },
+  { href: '/dashboard/conversas', label: 'Conversas', icon: MessageSquare },
   { href: '/dashboard/automacoes', label: 'Automações', icon: Zap },
   { href: '/dashboard/relatorios', label: 'Relatórios', icon: BarChart3 },
   { href: '/dashboard/api', label: 'API de Leads', icon: Code },

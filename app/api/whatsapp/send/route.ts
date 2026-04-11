@@ -1,6 +1,7 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdmin } from '@supabase/supabase-js'
+import { getViewingTenantId } from '@/lib/supabase/get-tenant'
 
 const supabaseAdmin = createAdmin(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -8,84 +9,80 @@ const supabaseAdmin = createAdmin(
   { auth: { autoRefreshToken: false, persistSession: false } }
 )
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
+    if (!user) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
 
-    const { data: userData } = await supabase.from('users').select('tenant_id').eq('id', user.id).single()
-    const u = userData as { tenant_id: string } | null
-    if (!u) return NextResponse.json({ error: 'Usuário inválido' }, { status: 403 })
+    const tenantId = await getViewingTenantId()
+    if (!tenantId) return NextResponse.json({ error: 'Tenant não encontrado' }, { status: 400 })
 
-    const body = await request.json()
-    const { phone, message, lead_id } = body as { phone: string; message: string; lead_id?: string }
-
-    if (!phone || !message) {
-      return NextResponse.json({ error: 'Telefone e mensagem são obrigatórios' }, { status: 400 })
+    const { conversationId, message } = await request.json() as { conversationId: string; message: string }
+    if (!conversationId || !message?.trim()) {
+      return NextResponse.json({ error: 'Dados inválidos' }, { status: 400 })
     }
 
-    // Buscar configuração Evolution API do tenant
-    const { data: tenant } = await supabaseAdmin
-      .from('tenants')
-      .select('evolution_api_url, evolution_api_key')
-      .eq('id', u.tenant_id)
+    // Get conversation (validate ownership)
+    const { data: conv } = await supabaseAdmin
+      .from('whatsapp_conversations')
+      .select('id, contact_phone, tenant_id')
+      .eq('id', conversationId)
+      .eq('tenant_id', tenantId)
       .single()
 
-    const t = tenant as { evolution_api_url: string | null; evolution_api_key: string | null } | null
-    if (!t?.evolution_api_url || !t?.evolution_api_key) {
-      return NextResponse.json({ error: 'WhatsApp não configurado. Configure em Configurações.' }, { status: 422 })
+    if (!conv) return NextResponse.json({ error: 'Conversa não encontrada' }, { status: 404 })
+    const conversation = conv as { id: string; contact_phone: string; tenant_id: string }
+
+    // Get tenant Z-API credentials
+    const { data: tenant } = await supabaseAdmin
+      .from('tenants')
+      .select('zapi_instance_id, zapi_token')
+      .eq('id', tenantId)
+      .single()
+
+    const t = tenant as { zapi_instance_id: string | null; zapi_token: string | null } | null
+    if (!t?.zapi_instance_id || !t?.zapi_token) {
+      return NextResponse.json({ error: 'WhatsApp não configurado para este escritório' }, { status: 400 })
     }
 
-    // Buscar instância ativa
-    const instancesRes = await fetch(`${t.evolution_api_url}/instance/fetchInstances`, {
-      headers: { apikey: t.evolution_api_key },
-    })
-    if (!instancesRes.ok) {
-      return NextResponse.json({ error: 'Falha ao conectar com Evolution API' }, { status: 502 })
+    // Send via Z-API
+    const zapiRes = await fetch(
+      `https://api.z-api.io/instances/${t.zapi_instance_id}/token/${t.zapi_token}/send-text`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Client-Token': t.zapi_token },
+        body: JSON.stringify({ phone: conversation.contact_phone, message: message.trim() }),
+      }
+    )
+
+    if (!zapiRes.ok) {
+      return NextResponse.json({ error: 'Falha ao enviar via WhatsApp' }, { status: 502 })
     }
 
-    const instances = await instancesRes.json() as Array<{ instance: { instanceName: string; status: string } }>
-    const activeInstance = instances.find((i) => i.instance?.status === 'open') || instances[0]
-    if (!activeInstance) {
-      return NextResponse.json({ error: 'Nenhuma instância WhatsApp conectada' }, { status: 422 })
-    }
+    // Store outgoing message
+    const now = new Date().toISOString()
+    const { data: newMsg } = await supabaseAdmin
+      .from('whatsapp_chat_messages')
+      .insert({
+        conversation_id: conversationId,
+        tenant_id: tenantId,
+        direction: 'outgoing',
+        content: message.trim(),
+        sent_at: now,
+      })
+      .select('id, direction, content, sent_at')
+      .single()
 
-    const instanceName = activeInstance.instance.instanceName
+    // Update conversation last message
+    await supabaseAdmin
+      .from('whatsapp_conversations')
+      .update({ last_message: message.trim(), last_message_at: now })
+      .eq('id', conversationId)
 
-    // Formatar número: remover não-dígitos e garantir DDI 55
-    const digits = phone.replace(/\D/g, '')
-    const number = digits.startsWith('55') ? digits : `55${digits}`
-
-    // Enviar mensagem
-    const sendRes = await fetch(`${t.evolution_api_url}/message/sendText/${instanceName}`, {
-      method: 'POST',
-      headers: {
-        apikey: t.evolution_api_key,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ number, text: message }),
-    })
-
-    const sendData = await sendRes.json()
-
-    if (!sendRes.ok) {
-      return NextResponse.json({ error: 'Falha ao enviar mensagem', details: sendData }, { status: 502 })
-    }
-
-    // Registrar no log
-    await supabaseAdmin.from('whatsapp_messages').insert({
-      tenant_id: u.tenant_id,
-      sender_id: user.id,
-      lead_id: lead_id || null,
-      phone: number,
-      message,
-      status: 'enviada',
-      evolution_message_id: (sendData as { key?: { id?: string } })?.key?.id || null,
-    })
-
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ message: newMsg })
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 })
+    console.error('Send error:', err)
+    return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
   }
 }
