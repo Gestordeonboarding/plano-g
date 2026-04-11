@@ -88,16 +88,14 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
   // Sellers don't have access to analytics
   if (role === 'seller') redirect('/dashboard')
 
-  // Agency admin without impersonation → send to admin analytics
-  if (role === 'agency_admin') {
-    const { cookies } = await import('next/headers')
-    const cookieStore = await cookies()
-    const viewAs = cookieStore.get('pgViewAs')?.value
-    if (!viewAs) redirect('/admin/analytics')
-  }
-
+  // getViewingTenantId handles both impersonation (agency_admin) and normal tenant users
   const tenantId = await getViewingTenantId()
-  if (!tenantId) redirect('/admin/analytics')
+
+  // If no tenant: agency_admin without impersonation → admin analytics; others → dashboard
+  if (!tenantId) {
+    if (role === 'agency_admin') redirect('/admin/analytics')
+    redirect('/dashboard')
+  }
 
   const { period = 'month' } = await searchParams
   const now = new Date()
