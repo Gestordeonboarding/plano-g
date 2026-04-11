@@ -2,14 +2,14 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { formatCurrency, formatDate, daysUntil } from '@/lib/utils'
 import Link from 'next/link'
-import { Bell, TrendingUp, FileText, MessageCircle, Zap } from 'lucide-react'
+import { Bell, TrendingUp, FileText, MessageCircle } from 'lucide-react'
 
 export default async function PortalHomePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect(`/portal/${slug}/login`)
+  if (!user) redirect(`/portal/${slug}/entrar`)
 
   // Buscar consorciado vinculado ao usuário logado neste tenant
   const { data: tenant } = await supabase

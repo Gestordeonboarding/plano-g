@@ -15,6 +15,10 @@ export default function PortalBottomNav({ slug }: { slug: string }) {
   const pathname = usePathname()
   const base = `/portal/${slug}`
 
+  // Hide on auth screens
+  const isAuthScreen = pathname.startsWith(`${base}/entrar`) || pathname.startsWith(`${base}/cadastrar`) || pathname.startsWith(`${base}/login`)
+  if (isAuthScreen) return null
+
   return (
     <nav
       className="fixed bottom-0 left-0 right-0 max-w-md mx-auto border-t flex"
