@@ -5,6 +5,7 @@ import { getViewingTenantId } from '@/lib/supabase/get-tenant'
 import { formatCurrency } from '@/lib/utils'
 import Link from 'next/link'
 import { Trophy, Clock, AlertTriangle, TrendingUp, Target, BarChart3 } from 'lucide-react'
+import { AddSellerButton, AddLeadButton, AddConsorciadoButton } from '@/components/analytics/AnalyticsActions'
 
 const supabaseAdmin = createAdmin(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -266,9 +267,12 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
 
         {/* Donut mix */}
         <div className="card-pg p-5 flex flex-col gap-4">
-          <div>
-            <h2 className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>Mix de Produtos</h2>
-            <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Por tipo de bem</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>Mix de Produtos</h2>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Por tipo de bem</p>
+            </div>
+            <AddLeadButton tenantId={tenantId} sellers={sellerRanking.map(s => ({ id: s.id, name: s.name }))} label="+ Lead" color="#00D4C8" />
           </div>
           {mixProdutos.length === 0 ? (
             <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Sem dados no período</p>
@@ -301,12 +305,15 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
 
         {/* Ranking */}
         <div className="card-pg p-5 flex flex-col gap-4">
-          <div className="flex items-center gap-2">
-            <Trophy size={16} style={{ color: '#FFB547' }} />
-            <div>
-              <h2 className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>Ranking de Vendedores</h2>
-              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Por conversões · {periodLabel}</p>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Trophy size={16} style={{ color: '#FFB547' }} />
+              <div>
+                <h2 className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>Ranking de Vendedores</h2>
+                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Por conversões · {periodLabel}</p>
+              </div>
             </div>
+            <AddSellerButton tenantId={tenantId} />
           </div>
           {sellerRanking.length === 0 ? (
             <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Nenhum vendedor cadastrado</p>
@@ -342,9 +349,12 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
 
         {/* Funil */}
         <div className="card-pg p-5 flex flex-col gap-4">
-          <div>
-            <h2 className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>Funil de Conversão</h2>
-            <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Distribuição por etapa do processo</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>Funil de Conversão</h2>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Distribuição por etapa do processo</p>
+            </div>
+            <AddLeadButton tenantId={tenantId} sellers={sellerRanking.map(s => ({ id: s.id, name: s.name }))} />
           </div>
           {totalLeads === 0 ? (
             <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Sem leads no período</p>
@@ -428,7 +438,10 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
 
         {/* Contemplação donut */}
         <div className="card-pg p-5 flex flex-col gap-4">
-          <h2 className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>Status de Contemplação</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>Status de Contemplação</h2>
+            <AddConsorciadoButton tenantId={tenantId} />
+          </div>
           {totalCons === 0 ? (
             <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Sem consorciados cadastrados</p>
           ) : (
