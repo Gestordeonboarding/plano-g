@@ -87,19 +87,22 @@ export default async function NotificacoesPage() {
 
                 {n.type === 'simulation' && n.data?.probability != null && (
                   <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
-                    <span style={{
-                      fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
-                      background: Number(n.data.probability) >= 70 ? 'rgba(0,212,200,0.1)' : Number(n.data.probability) >= 40 ? 'rgba(246,173,85,0.1)' : 'rgba(255,71,87,0.1)',
-                      color: Number(n.data.probability) >= 70 ? '#00D4C8' : Number(n.data.probability) >= 40 ? '#F6AD55' : '#ff4757',
-                    }}>
-                      {n.data.probability}% de chance
-                    </span>
-                    <span style={{
-                      fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
-                      background: 'var(--bg-tertiary)', color: 'var(--text-muted)',
-                    }}>
-                      {Number(n.data.lance_percent).toFixed(1)}% do crédito
-                    </span>
+                    {(() => {
+                      const prob = Number(n.data.probability)
+                      const pct = Number(n.data.lance_percent)
+                      const probColor = prob >= 70 ? '#00D4C8' : prob >= 40 ? '#F6AD55' : '#ff4757'
+                      const probBg = prob >= 70 ? 'rgba(0,212,200,0.1)' : prob >= 40 ? 'rgba(246,173,85,0.1)' : 'rgba(255,71,87,0.1)'
+                      return (
+                        <>
+                          <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: probBg, color: probColor }}>
+                            {prob}% de chance
+                          </span>
+                          <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: 'var(--bg-tertiary)', color: 'var(--text-muted)' }}>
+                            {pct.toFixed(1)}% do crédito
+                          </span>
+                        </>
+                      )
+                    })()}
                   </div>
                 )}
               </div>
