@@ -174,9 +174,10 @@ export default function EntrarPage() {
     const { data: tenant } = await supabase.from('tenants').select('id').eq('slug', slug).single()
     if (!tenant) { setCpfError('Escritório não encontrado.'); setCpfLoading(false); return }
 
-    const { data: con } = await supabase
+    const { data: cons } = await supabase
       .from('consorciados').select('full_name, user_id')
-      .eq('tenant_id', (tenant as { id: string }).id).eq('cpf', digits).single()
+      .eq('tenant_id', (tenant as { id: string }).id).eq('cpf', digits).limit(1)
+    const con = cons?.[0] ?? null
 
     if (!con) { setCpfError('CPF não encontrado. Fale com seu consultor.'); setCpfLoading(false); return }
 
