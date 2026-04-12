@@ -171,21 +171,15 @@ export default function EntrarPage() {
     const digits = cpfInput.replace(/\D/g, '')
     if (digits.length !== 11) { setCpfError('CPF inválido.'); setCpfLoading(false); return }
 
-    const supabase = createClient()
-    const { data: tenant } = await supabase.from('tenants').select('id').eq('slug', slug).single()
-    if (!tenant) { setCpfError('Escritório não encontrado.'); setCpfLoading(false); return }
+    const res = await fetch('/api/portal/check-cpf', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cpf: digits, slug }),
+    })
+    const data = await res.json()
+    if (!res.ok) { setCpfError(data.error || 'Erro ao verificar CPF.'); setCpfLoading(false); return }
 
-    const { data: cons } = await supabase
-      .from('consorciados').select('full_name, user_id')
-      .eq('tenant_id', (tenant as { id: string }).id).eq('cpf', digits).limit(1)
-    const con = cons?.[0] ?? null
-
-    if (!con) { setCpfError('CPF não encontrado. Fale com seu consultor.'); setCpfLoading(false); return }
-
-    const c = con as { full_name: string; user_id: string | null }
-    if (!c.user_id) { setCpfError('Conta não ativada. Use "Sou novo aqui".'); setCpfLoading(false); return }
-
-    const firstName = c.full_name.split(' ')[0]
+    const firstName = data.name as string
     localStorage.setItem(`portal_cpf_${slug}`, digits)
     localStorage.setItem(`portal_name_${slug}`, firstName)
     setSavedCpf(digits); setSavedName(firstName); setScreen('pin')

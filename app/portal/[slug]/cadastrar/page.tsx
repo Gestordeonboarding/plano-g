@@ -36,20 +36,16 @@ export default function CadastrarPage() {
     const digits = cpf.replace(/\D/g, '')
     if (digits.length !== 11) { setError('CPF inválido.'); setLoading(false); return }
 
-    const supabase = createClient()
-    const { data: tenant } = await supabase.from('tenants').select('id').eq('slug', slug).single()
-    if (!tenant) { setError('Escritório não encontrado.'); setLoading(false); return }
+    const res = await fetch('/api/portal/check-cpf-new', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cpf: digits, slug }),
+    })
+    const data = await res.json()
+    if (res.status === 409) { setError('Este CPF já possui cadastro. Use o botão "Entrar".'); setLoading(false); return }
+    if (!res.ok) { setError(data.error || 'CPF não encontrado. Fale com seu consultor.'); setLoading(false); return }
 
-    const { data: cons } = await supabase
-      .from('consorciados').select('id, full_name, user_id').eq('tenant_id', (tenant as {id:string}).id).eq('cpf', digits).limit(1)
-
-    const con = cons?.[0] ?? null
-    if (!con) { setError('CPF não encontrado. Fale com seu consultor.'); setLoading(false); return }
-
-    const c = con as { id: string; full_name: string; user_id: string | null }
-    if (c.user_id) { setError('Este CPF já possui cadastro. Use o botão "Entrar".'); setLoading(false); return }
-
-    setFoundName(c.full_name)
+    setFoundName(data.name)
     setStep('confirmar')
     setLoading(false)
   }
