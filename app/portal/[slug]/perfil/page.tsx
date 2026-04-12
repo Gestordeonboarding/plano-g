@@ -1,19 +1,20 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { formatCPF, formatPhone } from '@/lib/utils'
 import LogoutButton from './LogoutButton'
 
 export default async function PerfilPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
-  const supabase = await createClient()
+  const authClient = await createClient()
+  const db = await createServiceClient()
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect(`/portal/${slug}/login`)
+  const { data: { user } } = await authClient.auth.getUser()
+  if (!user) redirect(`/portal/${slug}/entrar`)
 
-  const { data: tenant } = await supabase.from('tenants').select('id, name').eq('slug', slug).single()
-  if (!tenant) redirect(`/portal/${slug}/login`)
+  const { data: tenant } = await db.from('tenants').select('id, name').eq('slug', slug).single()
+  if (!tenant) redirect(`/portal/${slug}/entrar`)
 
-  const { data: con } = await supabase
+  const { data: con } = await db
     .from('consorciados')
     .select('full_name, cpf, phone, email')
     .eq('user_id', user.id)

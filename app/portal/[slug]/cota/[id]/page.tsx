@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { formatCurrency, formatDate, daysUntil } from '@/lib/utils'
 import Link from 'next/link'
@@ -88,16 +88,17 @@ function getTheme(assetType: string | null) {
 
 export default async function CotaPage({ params }: { params: Promise<{ slug: string; id: string }> }) {
   const { slug, id } = await params
-  const supabase = await createClient()
+  const authClient = await createClient()
+  const db = await createServiceClient()
 
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user } } = await authClient.auth.getUser()
   if (!user) redirect(`/portal/${slug}/entrar`)
 
-  const { data: tenant } = await supabase
+  const { data: tenant } = await db
     .from('tenants').select('id, name').eq('slug', slug).single()
   if (!tenant) redirect(`/portal/${slug}/entrar`)
 
-  const { data: con } = await supabase
+  const { data: con } = await db
     .from('consorciados')
     .select('*')
     .eq('id', id)

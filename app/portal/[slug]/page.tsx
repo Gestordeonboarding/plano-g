@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { formatCurrency } from '@/lib/utils'
 import Link from 'next/link'
@@ -54,17 +54,18 @@ function getTheme(assetType: string | null): typeof THEMES['outros'] {
 
 export default async function PortalHomePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
-  const supabase = await createClient()
+  const authClient = await createClient()
+  const db = await createServiceClient()
 
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user } } = await authClient.auth.getUser()
   if (!user) redirect(`/portal/${slug}/entrar`)
 
-  const { data: tenant } = await supabase
+  const { data: tenant } = await db
     .from('tenants').select('id, name').eq('slug', slug).single()
 
   if (!tenant) redirect(`/portal/${slug}/entrar`)
 
-  const { data: cotas } = await supabase
+  const { data: cotas } = await db
     .from('consorciados')
     .select('id, full_name, credit_value, asset_type, status, administrator, installments_paid, total_installments, contemplation_score, group_number, quota_number')
     .eq('user_id', user.id)
