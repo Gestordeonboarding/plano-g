@@ -83,10 +83,20 @@ export async function POST(request: Request) {
         })
       }
 
-      await supabaseAdmin
-        .from('consorciados')
-        .update({ user_id: userId })
-        .eq('id', conData.id)
+      // Linka TODAS as cotas com o mesmo CPF no mesmo tenant ao mesmo user_id
+      const cpfDigitsForLink = (conData.cpf || '').replace(/\D/g, '')
+      if (cpfDigitsForLink) {
+        await supabaseAdmin
+          .from('consorciados')
+          .update({ user_id: userId })
+          .eq('tenant_id', conData.tenant_id)
+          .eq('cpf', cpfDigitsForLink)
+      } else {
+        await supabaseAdmin
+          .from('consorciados')
+          .update({ user_id: userId })
+          .eq('id', conData.id)
+      }
     }
 
     return NextResponse.json({ success: true, email, password })
