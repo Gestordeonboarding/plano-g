@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import PinPad from '@/components/portal/PinPad'
@@ -19,6 +19,8 @@ export default function CadastrarPage() {
   const [foundName, setFoundName] = useState('')
   const [pin, setPin] = useState('')
   const [pinConfirm, setPinConfirm] = useState('')
+  const pinRef = useRef('')
+  const pinConfirmRef = useRef('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -53,7 +55,8 @@ export default function CadastrarPage() {
   }
 
   async function handleCreateAccount() {
-    if (pin.length < 6) return
+    const currentPin = pinRef.current
+    if (currentPin.length < 6) return
     setLoading(true)
     setError(null)
 
@@ -75,7 +78,7 @@ export default function CadastrarPage() {
     if (signInError) { setError('Erro ao ativar conta. Tente novamente.'); setLoading(false); return }
 
     // 3. Update password to user's chosen PIN
-    const { error: updateError } = await supabase.auth.updateUser({ password: pin })
+    const { error: updateError } = await supabase.auth.updateUser({ password: pinRef.current })
     if (updateError) { setError('Erro ao definir PIN.'); setLoading(false); return }
 
     // 4. Save to localStorage for quick return
@@ -212,15 +215,13 @@ export default function CadastrarPage() {
             </div>
             <PinPad
               pin={pin}
-              onChange={setPin}
+              onChange={(p) => { setPin(p); pinRef.current = p }}
               onConfirm={() => {
-                if (pin.length === 6) {
-                  const savedPin = pin
-                  setTimeout(() => {
-                    setPin(savedPin)
-                    setPinConfirm('')
-                    setStep('confirmar_pin')
-                  }, 100)
+                const current = pinRef.current
+                if (current.length === 6) {
+                  setPinConfirm('')
+                  pinConfirmRef.current = ''
+                  setStep('confirmar_pin')
                 }
               }}
               label="Digite 6 dígitos"
@@ -239,12 +240,14 @@ export default function CadastrarPage() {
             </div>
             <PinPad
               pin={pinConfirm}
-              onChange={setPinConfirm}
+              onChange={(p) => { setPinConfirm(p); pinConfirmRef.current = p }}
               onConfirm={async () => {
-                if (pinConfirm.length === 6) {
-                  if (pinConfirm !== pin) {
+                const confirm = pinConfirmRef.current
+                const original = pinRef.current
+                if (confirm.length === 6) {
+                  if (confirm !== original) {
                     setError('PINs não conferem. Tente novamente.')
-                    setPinConfirm('')
+                    setPinConfirm(''); pinConfirmRef.current = ''
                     setTimeout(() => setError(null), 2000)
                     return
                   }
