@@ -35,8 +35,8 @@ export async function POST(request: Request) {
         .select('id, full_name, cpf, email, tenant_id')
         .eq('tenant_id', (tenant as { id: string }).id)
         .eq('cpf', cpfDigits)
-        .single()
-      con = data as typeof con
+        .limit(1)
+      con = (data?.[0] ?? null) as typeof con
     }
 
     if (!con) return NextResponse.json({ error: 'Consorciado não encontrado' }, { status: 404 })
