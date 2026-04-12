@@ -75,7 +75,7 @@ export default async function CotaPage({ params }: { params: Promise<{ slug: str
   const wpMsgNovo = encodeURIComponent(`Olá ${sellerName}! Sou ${firstName} e gostaria de contratar um novo consórcio.`)
 
   const acoes = [
-    { label: 'Simular Lance', icon: <TrendingUp size={18}/>, href: wp ? `https://wa.me/55${wp}?text=${wpMsgLance}` : null, external: true, color: theme.accent },
+    { label: 'Simular Lance', icon: <TrendingUp size={18}/>, href: `/portal/${slug}/simulador`, external: false, color: theme.accent },
     { label: 'Documentos',    icon: <FileText size={18}/>,   href: `/portal/${slug}/documentos`, external: false, color: theme.accent },
     { label: 'Assembleias',   icon: <Calendar size={18}/>,   href: `/portal/${slug}/assembleias`, external: false, color: theme.accent },
     { label: 'Falar c/ Consultor', icon: <MessageCircle size={18}/>, href: wp ? `https://wa.me/55${wp}` : `/portal/${slug}/chat`, external: !!wp, color: '#25D366' },
