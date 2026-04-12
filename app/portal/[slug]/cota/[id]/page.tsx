@@ -5,85 +5,23 @@ import Link from 'next/link'
 import {
   Building2, Car, Zap, CreditCard, ChevronLeft, Bell,
   TrendingUp, FileText, MessageCircle, LayoutGrid,
-  Calendar, Receipt, Gavel, User, Star,
+  Calendar, User, Star, Plus,
 } from 'lucide-react'
 
 type AssetType = 'imovel' | 'automovel' | 'moto' | 'outros'
 
 const THEMES: Record<AssetType, {
-  label: string
-  bg: string
-  bgCard: string
-  accent: string
-  accentDim: string
-  border: string
-  orb1: string
-  orb2: string
-  orb3: string
-  icon: React.ReactNode
-  bigEmoji: string
-  pattern: string
+  label: string; bg: string; accent: string; border: string
+  orb: string; icon: React.ReactNode; emoji: string
 }> = {
-  imovel: {
-    label: 'Imóvel',
-    bg: 'linear-gradient(160deg, #040c18 0%, #071828 50%, #030a12 100%)',
-    bgCard: 'rgba(212,175,55,0.06)',
-    accent: '#D4AF37',
-    accentDim: 'rgba(212,175,55,0.15)',
-    border: 'rgba(212,175,55,0.2)',
-    orb1: 'rgba(212,175,55,0.18)',
-    orb2: 'rgba(180,130,20,0.10)',
-    orb3: 'rgba(212,175,55,0.06)',
-    icon: <Building2 size={26} />,
-    bigEmoji: '🏛️',
-    pattern: 'repeating-linear-gradient(45deg, rgba(212,175,55,0.03) 0px, rgba(212,175,55,0.03) 1px, transparent 1px, transparent 40px)',
-  },
-  automovel: {
-    label: 'Automóvel',
-    bg: 'linear-gradient(160deg, #080205 0%, #130408 50%, #060102 100%)',
-    bgCard: 'rgba(255,71,87,0.06)',
-    accent: '#ff4757',
-    accentDim: 'rgba(255,71,87,0.15)',
-    border: 'rgba(255,71,87,0.2)',
-    orb1: 'rgba(255,71,87,0.18)',
-    orb2: 'rgba(180,20,30,0.12)',
-    orb3: 'rgba(255,71,87,0.06)',
-    icon: <Car size={26} />,
-    bigEmoji: '🏎️',
-    pattern: 'repeating-linear-gradient(80deg, rgba(255,71,87,0.03) 0px, rgba(255,71,87,0.03) 1px, transparent 1px, transparent 60px)',
-  },
-  moto: {
-    label: 'Moto',
-    bg: 'linear-gradient(160deg, #0a0700 0%, #160c00 50%, #070400 100%)',
-    bgCard: 'rgba(246,173,85,0.06)',
-    accent: '#F6AD55',
-    accentDim: 'rgba(246,173,85,0.15)',
-    border: 'rgba(246,173,85,0.2)',
-    orb1: 'rgba(246,173,85,0.18)',
-    orb2: 'rgba(180,100,20,0.10)',
-    orb3: 'rgba(246,173,85,0.06)',
-    icon: <Zap size={26} />,
-    bigEmoji: '🏍️',
-    pattern: 'repeating-linear-gradient(-45deg, rgba(246,173,85,0.03) 0px, rgba(246,173,85,0.03) 1px, transparent 1px, transparent 50px)',
-  },
-  outros: {
-    label: 'Consórcio',
-    bg: 'linear-gradient(160deg, #040c10 0%, #071820 50%, #030a10 100%)',
-    bgCard: 'rgba(0,212,200,0.06)',
-    accent: '#00D4C8',
-    accentDim: 'rgba(0,212,200,0.15)',
-    border: 'rgba(0,212,200,0.2)',
-    orb1: 'rgba(0,212,200,0.18)',
-    orb2: 'rgba(0,150,150,0.10)',
-    orb3: 'rgba(0,212,200,0.06)',
-    icon: <CreditCard size={26} />,
-    bigEmoji: '💎',
-    pattern: 'repeating-linear-gradient(45deg, rgba(0,212,200,0.03) 0px, rgba(0,212,200,0.03) 1px, transparent 1px, transparent 40px)',
-  },
+  imovel:    { label: 'Imóvel',    bg: 'linear-gradient(160deg,#040c18,#071828,#030a12)', accent: '#D4AF37', border: 'rgba(212,175,55,0.2)',  orb: 'rgba(212,175,55,0.15)', icon: <Building2 size={20}/>, emoji: '🏛️' },
+  automovel: { label: 'Automóvel', bg: 'linear-gradient(160deg,#080205,#130408,#060102)', accent: '#ff4757', border: 'rgba(255,71,87,0.2)',   orb: 'rgba(255,71,87,0.15)',  icon: <Car size={20}/>,       emoji: '🏎️' },
+  moto:      { label: 'Moto',      bg: 'linear-gradient(160deg,#0a0700,#160c00,#070400)', accent: '#F6AD55', border: 'rgba(246,173,85,0.2)',  orb: 'rgba(246,173,85,0.15)', icon: <Zap size={20}/>,       emoji: '🏍️' },
+  outros:    { label: 'Consórcio', bg: 'linear-gradient(160deg,#040c10,#071820,#030a10)', accent: '#00D4C8', border: 'rgba(0,212,200,0.2)',   orb: 'rgba(0,212,200,0.15)',  icon: <CreditCard size={20}/>, emoji: '💎' },
 }
 
-function getTheme(assetType: string | null) {
-  return THEMES[(assetType as AssetType) ?? 'outros'] ?? THEMES.outros
+function getTheme(t: string | null) {
+  return THEMES[(t as AssetType) ?? 'outros'] ?? THEMES.outros
 }
 
 export default async function CotaPage({ params }: { params: Promise<{ slug: string; id: string }> }) {
@@ -94,319 +32,247 @@ export default async function CotaPage({ params }: { params: Promise<{ slug: str
   const { data: { user } } = await authClient.auth.getUser()
   if (!user) redirect(`/portal/${slug}/entrar`)
 
-  const { data: tenant } = await db
-    .from('tenants').select('id, name').eq('slug', slug).single()
+  const { data: tenant } = await db.from('tenants').select('id').eq('slug', slug).single()
   if (!tenant) redirect(`/portal/${slug}/entrar`)
 
   const { data: con } = await db
-    .from('consorciados')
-    .select('*')
-    .eq('id', id)
-    .eq('user_id', user.id)
-    .eq('tenant_id', (tenant as { id: string }).id)
+    .from('consorciados').select('*')
+    .eq('id', id).eq('user_id', user.id).eq('tenant_id', (tenant as { id: string }).id)
     .single()
 
   if (!con) redirect(`/portal/${slug}`)
 
   const c = con as {
-    id: string; full_name: string; credit_value: number
-    asset_type: string | null
+    id: string; full_name: string; credit_value: number; asset_type: string | null
     group_number: string | null; quota_number: string | null
     installments_paid: number; total_installments: number | null
     monthly_installment: number | null; next_assembly_date: string | null
     contemplation_score: number; status: string; administrator: string | null
-    cpf: string | null; phone: string | null; email: string | null
+    seller_id: string | null
+  }
+
+  // Buscar vendedor
+  let sellerPhone: string | null = null
+  let sellerName = 'Consultor'
+  if (c.seller_id) {
+    const { data: s } = await db.from('users').select('full_name, phone').eq('id', c.seller_id).single()
+    if (s) {
+      sellerName = (s as { full_name: string | null }).full_name || 'Consultor'
+      sellerPhone = (s as { phone: string | null }).phone
+    }
   }
 
   const theme = getTheme(c.asset_type)
   const pct = c.total_installments ? Math.round((c.installments_paid / c.total_installments) * 100) : 0
   const dias = daysUntil(c.next_assembly_date)
   const score = c.contemplation_score || 0
+  const scoreColor = score >= 70 ? '#00D4C8' : score >= 40 ? '#F6AD55' : '#ff4757'
+  const scoreLabel = score >= 70 ? 'Alto' : score >= 40 ? 'Médio' : 'Baixo'
 
-  let scoreColor = '#ff4757'
-  let scoreLabel = 'Baixo'
-  let scorePhrase = 'Continue em dia com as parcelas para melhorar seu score.'
-  if (score >= 70) {
-    scoreColor = '#00D4C8'; scoreLabel = 'Alto'
-    scorePhrase = 'Ótimo! Você tem grande chance de contemplação. Considere ofertar um lance.'
-  } else if (score >= 40) {
-    scoreColor = '#F6AD55'; scoreLabel = 'Médio'
-    scorePhrase = 'Chances moderadas. Considere um lance na próxima assembleia.'
-  }
+  const wp = sellerPhone?.replace(/\D/g, '')
+  const firstName = c.full_name.split(' ')[0]
+  const wpMsgLance = encodeURIComponent(`Olá ${sellerName}! Sou ${firstName} e quero simular um lance no meu consórcio de ${theme.label}.`)
+  const wpMsgNovo = encodeURIComponent(`Olá ${sellerName}! Sou ${firstName} e gostaria de contratar um novo consórcio.`)
 
   const acoes = [
-    { label: 'Simular Lance', icon: <TrendingUp size={20} />, href: `/portal/${slug}/simulador`, color: theme.accent },
-    { label: 'Ofertar Lance', icon: <Gavel size={20} />, href: `/portal/${slug}/lance`, color: theme.accent },
-    { label: 'Parcelas', icon: <Receipt size={20} />, href: `/portal/${slug}/parcelas`, color: theme.accent },
-    { label: 'Documentos', icon: <FileText size={20} />, href: `/portal/${slug}/documentos`, color: theme.accent },
-    { label: 'Falar c/ Corretor', icon: <MessageCircle size={20} />, href: `/portal/${slug}/chat`, color: theme.accent },
-    { label: 'Assembleias', icon: <Calendar size={20} />, href: `/portal/${slug}/assembleias`, color: theme.accent },
-    { label: 'Minha Carteira', icon: <LayoutGrid size={20} />, href: `/portal/${slug}`, color: 'rgba(255,255,255,0.5)' },
-    { label: 'Meu Perfil', icon: <User size={20} />, href: `/portal/${slug}/perfil`, color: 'rgba(255,255,255,0.5)' },
+    { label: 'Simular Lance', icon: <TrendingUp size={18}/>, href: wp ? `https://wa.me/55${wp}?text=${wpMsgLance}` : null, external: true, color: theme.accent },
+    { label: 'Documentos',    icon: <FileText size={18}/>,   href: `/portal/${slug}/documentos`, external: false, color: theme.accent },
+    { label: 'Assembleias',   icon: <Calendar size={18}/>,   href: `/portal/${slug}/assembleias`, external: false, color: theme.accent },
+    { label: 'Falar c/ Consultor', icon: <MessageCircle size={18}/>, href: wp ? `https://wa.me/55${wp}` : `/portal/${slug}/chat`, external: !!wp, color: '#25D366' },
+    { label: 'Carteira',      icon: <LayoutGrid size={18}/>, href: `/portal/${slug}`, external: false, color: 'var(--text-muted)' },
+    { label: 'Perfil',        icon: <User size={18}/>,       href: `/portal/${slug}/perfil`, external: false, color: 'var(--text-muted)' },
   ]
 
   return (
     <>
       <style>{`
-        @keyframes fadeUp {
-          from { opacity: 0; transform: translateY(18px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes floatSlow {
-          0%, 100% { transform: translateY(0) rotate(0deg); }
-          50%       { transform: translateY(-14px) rotate(4deg); }
-        }
-        @keyframes glowPulse {
-          0%, 100% { opacity: 0.6; }
-          50%       { opacity: 1; }
-        }
-        @keyframes scoreBar {
-          from { width: 0%; }
-          to   { width: var(--score-pct); }
-        }
-        @keyframes progressBar {
-          from { width: 0%; }
-          to   { width: var(--prog-pct); }
-        }
-        .fu1 { animation: fadeUp 0.6s ease 0.0s both; }
-        .fu2 { animation: fadeUp 0.6s ease 0.1s both; }
-        .fu3 { animation: fadeUp 0.6s ease 0.2s both; }
-        .fu4 { animation: fadeUp 0.6s ease 0.3s both; }
-        .fu5 { animation: fadeUp 0.6s ease 0.4s both; }
-        .fu6 { animation: fadeUp 0.6s ease 0.5s both; }
-        .float-emoji { animation: floatSlow 8s ease-in-out infinite; }
-        .glow-orb { animation: glowPulse 5s ease-in-out infinite; }
-        .score-bar-fill {
-          height: 100%; border-radius: 4px;
-          background: linear-gradient(90deg, var(--score-color), var(--score-color-dim));
-          animation: scoreBar 1.2s cubic-bezier(.22,1,.36,1) 0.5s both;
-          --score-pct: ${score}%;
-          width: var(--score-pct);
-        }
-        .prog-bar-fill {
-          height: 100%; border-radius: 4px;
-          background: linear-gradient(90deg, var(--theme-accent), var(--theme-accent-dim));
-          animation: progressBar 1.2s cubic-bezier(.22,1,.36,1) 0.5s both;
-          --prog-pct: ${pct}%;
-          width: var(--prog-pct);
-        }
-        .acao-btn {
-          display: flex; flex-direction: column; align-items: center;
-          gap: 8px; padding: 18px 8px; border-radius: 18px;
-          text-decoration: none;
-          border: 1px solid rgba(255,255,255,0.07);
-          background: rgba(255,255,255,0.04);
-          backdrop-filter: blur(12px);
-          transition: transform 0.15s ease, background 0.15s ease;
-        }
-        .acao-btn:active { transform: scale(0.95); background: rgba(255,255,255,0.08); }
+        @keyframes fadeUp { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes floatSlow { 0%,100%{transform:translateY(0) rotate(0deg);} 50%{transform:translateY(-12px) rotate(3deg);} }
+        @keyframes glowPulse { 0%,100%{opacity:0.5;} 50%{opacity:1;} }
+        .fu1{animation:fadeUp .5s ease .00s both} .fu2{animation:fadeUp .5s ease .08s both}
+        .fu3{animation:fadeUp .5s ease .16s both} .fu4{animation:fadeUp .5s ease .24s both}
+        .fu5{animation:fadeUp .5s ease .32s both}
+        .float-em{animation:floatSlow 8s ease-in-out infinite;}
+        .glow{animation:glowPulse 5s ease-in-out infinite;}
+        .acao{display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 6px;border-radius:14px;text-decoration:none;border:1px solid rgba(255,255,255,0.07);background:rgba(255,255,255,0.04);transition:transform .15s;}
+        .acao:active{transform:scale(0.94);}
       `}</style>
 
-      {/* Escape layout padding */}
       <div style={{
-        margin: '-20px -16px',
-        minHeight: 'calc(100vh - 56px)',
-        background: theme.bg,
-        position: 'relative',
-        overflow: 'hidden',
-        display: 'flex',
-        flexDirection: 'column',
+        margin: '-20px -16px', minHeight: 'calc(100vh - 56px)',
+        background: theme.bg, position: 'relative', overflow: 'hidden',
+        display: 'flex', flexDirection: 'column',
       }}>
-        {/* Pattern overlay */}
-        <div style={{ position: 'absolute', inset: 0, backgroundImage: theme.pattern, pointerEvents: 'none' }} />
+        {/* Orb */}
+        <div className="glow" style={{
+          position:'absolute',top:'-40px',left:'50%',transform:'translateX(-50%)',
+          width:300,height:300,borderRadius:'50%',
+          background:`radial-gradient(circle,${theme.orb} 0%,transparent 70%)`,
+          pointerEvents:'none',
+        }}/>
 
-        {/* Glow orbs */}
-        <div className="glow-orb" style={{
-          position: 'absolute', top: '-60px', left: '50%', transform: 'translateX(-50%)',
-          width: 340, height: 340, borderRadius: '50%',
-          background: `radial-gradient(circle, ${theme.orb1} 0%, transparent 70%)`,
-          pointerEvents: 'none',
-        }} />
-        <div style={{
-          position: 'absolute', bottom: '30%', right: '-80px',
-          width: 250, height: 250, borderRadius: '50%',
-          background: `radial-gradient(circle, ${theme.orb2} 0%, transparent 70%)`,
-          pointerEvents: 'none',
-        }} />
-        <div style={{
-          position: 'absolute', bottom: '10%', left: '-50px',
-          width: 200, height: 200, borderRadius: '50%',
-          background: `radial-gradient(circle, ${theme.orb3} 0%, transparent 70%)`,
-          pointerEvents: 'none',
-        }} />
-
-        {/* Big watermark emoji */}
-        <div className="float-emoji" style={{
-          position: 'absolute', right: '-10px', top: '8%',
-          fontSize: 120, opacity: 0.06, pointerEvents: 'none', userSelect: 'none',
-        }}>
-          {theme.bigEmoji}
-        </div>
+        {/* Emoji watermark */}
+        <div className="float-em" style={{
+          position:'absolute',right:'-5px',top:'10%',
+          fontSize:100,opacity:0.05,pointerEvents:'none',userSelect:'none',
+        }}>{theme.emoji}</div>
 
         {/* Top bar */}
         <div className="fu1" style={{
-          display: 'flex', alignItems: 'center', gap: 12,
-          padding: '14px 20px',
-          borderBottom: `1px solid ${theme.border}`,
-          position: 'relative', zIndex: 10,
+          display:'flex',alignItems:'center',gap:10,padding:'12px 16px',
+          borderBottom:`1px solid ${theme.border}`,position:'relative',zIndex:10,
         }}>
-          <Link href={`/portal/${slug}`} style={{ display: 'flex', alignItems: 'center', color: 'rgba(255,255,255,0.5)' }}>
-            <ChevronLeft size={22} />
+          <Link href={`/portal/${slug}`} style={{color:'rgba(255,255,255,0.4)',display:'flex'}}>
+            <ChevronLeft size={20}/>
           </Link>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{display:'flex',alignItems:'center',gap:8}}>
             <div style={{
-              width: 34, height: 34, borderRadius: 10,
-              background: `${theme.accent}22`,
-              border: `1px solid ${theme.accent}44`,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: theme.accent,
-            }}>
-              {theme.icon}
-            </div>
+              width:30,height:30,borderRadius:8,
+              background:`${theme.accent}22`,border:`1px solid ${theme.accent}44`,
+              display:'flex',alignItems:'center',justifyContent:'center',color:theme.accent,
+            }}>{theme.icon}</div>
             <div>
-              <p style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>{theme.label}</p>
-              <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)' }}>
-                Grupo {c.group_number || '—'} · Cota {c.quota_number || '—'}
+              <p style={{fontSize:13,fontWeight:700,color:'#fff'}}>{theme.label}</p>
+              <p style={{fontSize:10,color:'rgba(255,255,255,0.35)'}}>
+                Grupo {c.group_number||'—'} · Cota {c.quota_number||'—'}
               </p>
             </div>
           </div>
-          {c.status && (
-            <div style={{ marginLeft: 'auto' }}>
-              <span style={{
-                fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.12em',
-                padding: '4px 10px', borderRadius: 20,
-                background: c.status === 'ativo' ? 'rgba(0,212,200,0.15)' : 'rgba(255,255,255,0.08)',
-                color: c.status === 'ativo' ? '#00D4C8' : 'rgba(255,255,255,0.4)',
-                border: `1px solid ${c.status === 'ativo' ? 'rgba(0,212,200,0.3)' : 'rgba(255,255,255,0.1)'}`,
-              }}>
-                {c.status}
-              </span>
-            </div>
+          {c.status === 'ativo' && (
+            <span style={{
+              marginLeft:'auto',fontSize:9,fontWeight:800,textTransform:'uppercase',
+              padding:'3px 8px',borderRadius:20,
+              background:'rgba(0,212,200,0.15)',color:'#00D4C8',
+              border:'1px solid rgba(0,212,200,0.3)',
+            }}>Ativo</span>
           )}
         </div>
 
-        {/* Main content */}
-        <div style={{ flex: 1, padding: '20px 20px 100px', position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {/* Conteúdo */}
+        <div style={{flex:1,padding:'16px 16px 100px',position:'relative',zIndex:1,display:'flex',flexDirection:'column',gap:12}}>
 
           {/* Alerta assembleia */}
           {dias !== null && dias <= 15 && (
             <div className="fu1" style={{
-              display: 'flex', alignItems: 'center', gap: 12,
-              padding: '14px 16px', borderRadius: 16,
-              background: 'rgba(246,173,85,0.1)',
-              border: '1px solid rgba(246,173,85,0.25)',
+              display:'flex',alignItems:'center',gap:10,padding:'12px 14px',borderRadius:12,
+              background:'rgba(246,173,85,0.1)',border:'1px solid rgba(246,173,85,0.25)',
             }}>
-              <Bell size={17} color="#F6AD55" />
-              <div>
-                <p style={{ fontSize: 13, fontWeight: 700, color: '#F6AD55' }}>
-                  Assembleia em {dias} dia{dias !== 1 ? 's' : ''}!
-                </p>
-                {c.next_assembly_date && (
-                  <p style={{ fontSize: 11, color: 'rgba(246,173,85,0.7)' }}>{formatDate(c.next_assembly_date)}</p>
-                )}
-              </div>
+              <Bell size={15} color="#F6AD55"/>
+              <p style={{fontSize:12,fontWeight:700,color:'#F6AD55'}}>
+                Assembleia em {dias} dia{dias!==1?'s':''}
+                {c.next_assembly_date && ` · ${formatDate(c.next_assembly_date)}`}
+              </p>
             </div>
           )}
 
           {/* Card principal */}
           <div className="fu2" style={{
-            borderRadius: 22, padding: '22px',
-            background: theme.bgCard,
-            border: `1px solid ${theme.border}`,
-            backdropFilter: 'blur(20px)',
+            borderRadius:16,padding:'16px',
+            background:`${theme.accent}0d`,
+            border:`1px solid ${theme.border}`,
+            backdropFilter:'blur(20px)',
           }}>
-            <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 4 }}>
-              Valor do crédito
+            <p style={{fontSize:10,color:'rgba(255,255,255,0.4)',fontWeight:600,textTransform:'uppercase',letterSpacing:'0.1em',marginBottom:2}}>
+              Crédito contratado
             </p>
-            <p style={{ fontSize: 36, fontWeight: 900, color: theme.accent, letterSpacing: '-0.02em', marginBottom: 18 }}>
+            <p style={{fontSize:28,fontWeight:900,color:theme.accent,letterSpacing:'-0.02em',marginBottom:14}}>
               {formatCurrency(c.credit_value)}
             </p>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px 16px', marginBottom: 18 }}>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px 16px',marginBottom:14}}>
               {[
-                { label: 'Parcela mensal', value: formatCurrency(c.monthly_installment) },
-                { label: 'Próx. assembleia', value: c.next_assembly_date ? formatDate(c.next_assembly_date) : '—' },
-                { label: 'Administradora', value: c.administrator || '—' },
-                { label: 'Parcelas pagas', value: `${c.installments_paid} / ${c.total_installments || '—'}` },
-              ].map(({ label, value }) => (
+                {label:'Parcela mensal', value:formatCurrency(c.monthly_installment)},
+                {label:'Próx. assembleia', value:c.next_assembly_date?formatDate(c.next_assembly_date):'—'},
+                {label:'Administradora', value:c.administrator||'—'},
+                {label:'Parcelas', value:`${c.installments_paid}/${c.total_installments||'—'}`},
+              ].map(({label,value})=>(
                 <div key={label}>
-                  <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{label}</p>
-                  <p style={{ fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,0.85)' }}>{value}</p>
+                  <p style={{fontSize:9,color:'rgba(255,255,255,0.35)',fontWeight:600,textTransform:'uppercase',letterSpacing:'0.08em'}}>{label}</p>
+                  <p style={{fontSize:12,fontWeight:700,color:'rgba(255,255,255,0.8)'}}>{value}</p>
                 </div>
               ))}
             </div>
 
-            {/* Progress bar */}
+            {/* Progress */}
             <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', fontWeight: 600 }}>Progresso do consórcio</span>
-                <span style={{ fontSize: 10, color: theme.accent, fontWeight: 700 }}>{pct}%</span>
+              <div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}>
+                <span style={{fontSize:9,color:'rgba(255,255,255,0.35)',fontWeight:600}}>Progresso</span>
+                <span style={{fontSize:9,color:theme.accent,fontWeight:700}}>{pct}%</span>
               </div>
-              <div style={{ height: 6, borderRadius: 4, background: 'rgba(255,255,255,0.08)' }}>
-                <div
-                  className="prog-bar-fill"
-                  style={{ '--theme-accent': theme.accent, '--theme-accent-dim': theme.accentDim } as React.CSSProperties}
-                />
+              <div style={{height:4,borderRadius:4,background:'rgba(255,255,255,0.08)'}}>
+                <div style={{height:4,borderRadius:4,width:`${pct}%`,background:theme.accent}}/>
               </div>
             </div>
           </div>
 
-          {/* Score de contemplação */}
+          {/* Score */}
           <div className="fu3" style={{
-            borderRadius: 22, padding: '20px',
-            background: 'rgba(255,255,255,0.04)',
-            border: '1px solid rgba(255,255,255,0.08)',
-            backdropFilter: 'blur(20px)',
+            borderRadius:16,padding:'14px 16px',
+            background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.08)',
+            backdropFilter:'blur(20px)',display:'flex',alignItems:'center',gap:14,
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-              <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                Score de contemplação
-              </p>
-              <Star size={14} color={scoreColor} />
+            <div>
+              <p style={{fontSize:9,color:'rgba(255,255,255,0.35)',fontWeight:600,textTransform:'uppercase',letterSpacing:'0.1em',marginBottom:4}}>Score</p>
+              <p style={{fontSize:32,fontWeight:900,color:scoreColor,lineHeight:1}}>{score}</p>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 12 }}>
-              <span style={{ fontSize: 48, fontWeight: 900, color: scoreColor, lineHeight: 1 }}>{score}</span>
-              <div style={{ flex: 1 }}>
-                <span style={{
-                  fontSize: 11, fontWeight: 800, padding: '3px 10px', borderRadius: 20,
-                  background: `${scoreColor}18`, color: scoreColor,
-                  border: `1px solid ${scoreColor}33`, display: 'inline-block', marginBottom: 8,
-                }}>
-                  {scoreLabel}
-                </span>
-                <div style={{ height: 6, borderRadius: 4, background: 'rgba(255,255,255,0.08)' }}>
-                  <div
-                    className="score-bar-fill"
-                    style={{ '--score-color': scoreColor, '--score-color-dim': `${scoreColor}55` } as React.CSSProperties}
-                  />
-                </div>
+            <div style={{flex:1}}>
+              <span style={{
+                fontSize:10,fontWeight:800,padding:'2px 8px',borderRadius:20,
+                background:`${scoreColor}18`,color:scoreColor,
+                border:`1px solid ${scoreColor}33`,display:'inline-block',marginBottom:6,
+              }}>{scoreLabel}</span>
+              <div style={{height:4,borderRadius:4,background:'rgba(255,255,255,0.08)'}}>
+                <div style={{height:4,borderRadius:4,width:`${score}%`,background:scoreColor}}/>
               </div>
             </div>
-            <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', lineHeight: 1.6 }}>{scorePhrase}</p>
+            <Star size={16} color={scoreColor}/>
           </div>
 
           {/* Ações */}
           <div className="fu4">
-            <p style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 12 }}>
-              O que você quer fazer?
+            <p style={{fontSize:10,fontWeight:700,color:'rgba(255,255,255,0.3)',textTransform:'uppercase',letterSpacing:'0.12em',marginBottom:10}}>
+              Ações
             </p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
-              {acoes.map((a, i) => (
-                <Link
-                  key={a.label}
-                  href={a.href}
-                  className="acao-btn"
-                  style={{ animation: `fadeUp 0.5s ease ${0.3 + i * 0.05}s both` }}
-                >
-                  <span style={{ color: a.color }}>{a.icon}</span>
-                  <span style={{ fontSize: 9, fontWeight: 700, color: 'rgba(255,255,255,0.5)', textAlign: 'center', lineHeight: 1.3 }}>
-                    {a.label}
-                  </span>
-                </Link>
-              ))}
+            <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8}}>
+              {acoes.map((a,i)=>{
+                const style_={color:a.color} as React.CSSProperties
+                if(a.href && a.external) return (
+                  <a key={i} href={a.href} target="_blank" rel="noopener noreferrer" className="acao"
+                    style={{animation:`fadeUp .4s ease ${.3+i*.04}s both`}}>
+                    <span style={style_}>{a.icon}</span>
+                    <span style={{fontSize:9,fontWeight:700,color:'rgba(255,255,255,0.5)',textAlign:'center',lineHeight:1.3}}>{a.label}</span>
+                  </a>
+                )
+                return (
+                  <Link key={i} href={a.href||'#'} className="acao"
+                    style={{animation:`fadeUp .4s ease ${.3+i*.04}s both`}}>
+                    <span style={style_}>{a.icon}</span>
+                    <span style={{fontSize:9,fontWeight:700,color:'rgba(255,255,255,0.5)',textAlign:'center',lineHeight:1.3}}>{a.label}</span>
+                  </Link>
+                )
+              })}
             </div>
           </div>
 
+          {/* CTA novo consórcio */}
+          <div className="fu5">
+            {wp ? (
+              <a
+                href={`https://wa.me/55${wp}?text=${wpMsgNovo}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display:'flex',alignItems:'center',justifyContent:'center',gap:8,
+                  padding:'14px',borderRadius:14,
+                  background:'rgba(37,211,102,0.1)',border:'1px solid rgba(37,211,102,0.25)',
+                  color:'#25D366',fontWeight:700,fontSize:13,textDecoration:'none',
+                }}
+              >
+                <Plus size={16}/>
+                Quero um novo consórcio
+              </a>
+            ) : null}
+          </div>
         </div>
       </div>
     </>
