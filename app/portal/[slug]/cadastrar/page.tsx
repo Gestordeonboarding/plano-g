@@ -272,7 +272,7 @@ export default function CadastrarPage() {
                 Sua conta está ativa. Na próxima vez, é só informar seu PIN.
               </p>
             </div>
-            <button onClick={() => router.push(`/portal/${slug}`)}
+            <button onClick={() => { window.location.href = `/portal/${slug}` }}
               className="py-4 px-8 rounded-2xl text-base font-bold transition-all active:scale-95 w-full"
               style={{ backgroundColor: 'var(--tenant-primary)', color: '#fff' }}>
               Ver minha cota agora →

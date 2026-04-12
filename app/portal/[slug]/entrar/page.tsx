@@ -195,8 +195,7 @@ export default function EntrarPage() {
       email: `${savedCpf}@portal.local`, password: currentPin,
     })
     if (authError) { setError('PIN incorreto. Tente novamente.'); setPin(''); pinRef.current = ''; setLoading(false); return }
-    router.refresh()
-    router.push(`/portal/${slug}`)
+    window.location.href = `/portal/${slug}`
   }
 
   function clearDevice() {
