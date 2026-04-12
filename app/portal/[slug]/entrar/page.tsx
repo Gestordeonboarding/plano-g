@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import PinPad from '@/components/portal/PinPad'
@@ -143,6 +143,7 @@ export default function EntrarPage() {
   const [savedCpf, setSavedCpf] = useState<string | null>(null)
   const [savedName, setSavedName] = useState<string | null>(null)
   const [pin, setPin] = useState('')
+  const pinRef = useRef('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [cpfInput, setCpfInput] = useState('')
@@ -192,13 +193,14 @@ export default function EntrarPage() {
   }
 
   async function handlePinConfirm() {
-    if (!savedCpf || pin.length < 6) return
+    const currentPin = pinRef.current
+    if (!savedCpf || currentPin.length < 6) return
     setLoading(true); setError(null)
     const supabase = createClient()
     const { error: authError } = await supabase.auth.signInWithPassword({
-      email: `${savedCpf}@portal.local`, password: pin,
+      email: `${savedCpf}@portal.local`, password: currentPin,
     })
-    if (authError) { setError('PIN incorreto. Tente novamente.'); setPin(''); setLoading(false); return }
+    if (authError) { setError('PIN incorreto. Tente novamente.'); setPin(''); pinRef.current = ''; setLoading(false); return }
     router.push(`/portal/${slug}`)
   }
 
@@ -566,7 +568,7 @@ export default function EntrarPage() {
           <div className="pf2" style={{ width: '100%' }}>
             <PinPad
               pin={pin}
-              onChange={(p) => { setPin(p); if (error) setError(null) }}
+              onChange={(p) => { setPin(p); pinRef.current = p; if (error) setError(null) }}
               onConfirm={handlePinConfirm}
               label="Digite seu PIN de 6 dígitos"
               error={error}
