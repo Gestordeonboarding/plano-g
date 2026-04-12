@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import PortalBottomNav from '@/components/portal/BottomNav'
 
@@ -10,7 +10,7 @@ export default async function PortalLayout({
   params: Promise<{ slug: string }>
 }) {
   const { slug } = await params
-  const supabase = await createClient()
+  const supabase = await createServiceClient()
 
   const { data: tenant } = await supabase
     .from('tenants')
