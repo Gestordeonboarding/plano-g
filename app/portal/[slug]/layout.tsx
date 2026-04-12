@@ -1,5 +1,5 @@
 import { createServiceClient } from '@/lib/supabase/server'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import PortalBottomNav from '@/components/portal/BottomNav'
 
 export default async function PortalLayout({
@@ -18,7 +18,14 @@ export default async function PortalLayout({
     .eq('slug', slug)
     .single()
 
-  if (!tenant || !(tenant as { is_active: boolean }).is_active) notFound()
+  if (!tenant) {
+    console.error('[PortalLayout] Tenant not found for slug:', slug)
+    notFound()
+  }
+  if (!(tenant as { is_active: boolean }).is_active) {
+    console.error('[PortalLayout] Tenant inactive for slug:', slug)
+    notFound()
+  }
 
   const t = tenant as { id: string; name: string; logo_url: string | null; primary_color: string | null }
   const primaryColor = t.primary_color || '#00D4C8'
