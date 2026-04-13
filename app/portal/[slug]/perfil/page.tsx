@@ -14,16 +14,17 @@ export default async function PerfilPage({ params }: { params: Promise<{ slug: s
   const { data: tenant } = await db.from('tenants').select('id, name').eq('slug', slug).single()
   if (!tenant) redirect(`/portal/${slug}/entrar`)
 
-  const { data: con } = await db
+  const { data: cons } = await db
     .from('consorciados')
     .select('full_name, cpf, phone, email')
     .eq('user_id', user.id)
     .eq('tenant_id', (tenant as { id: string }).id)
-    .single()
+    .limit(1)
 
+  const con = cons?.[0] ?? null
   if (!con) redirect(`/portal/${slug}`)
 
-  const c = con as { full_name: string; cpf: string | null; phone: string | null; email: string | null }
+  const c = con as unknown as { full_name: string; cpf: string | null; phone: string | null; email: string | null }
   const t = tenant as { id: string; name: string }
 
   return (

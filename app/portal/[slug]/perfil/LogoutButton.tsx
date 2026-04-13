@@ -10,7 +10,7 @@ export default function LogoutButton({ slug }: { slug: string }) {
   async function handleLogout() {
     const supabase = createClient()
     await supabase.auth.signOut()
-    router.push(`/portal/${slug}/login`)
+    window.location.href = `/portal/${slug}/entrar`
   }
 
   return (
