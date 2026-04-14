@@ -11,7 +11,13 @@ export default async function ConsorCiadoPage({ params }: { params: Promise<{ id
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: c } = await supabase.from('consorciados').select('*').eq('id', id).single()
+  const { data: userData } = await supabase.from('users').select('role').eq('id', user.id).single()
+  const role = (userData as { role: string } | null)?.role || 'seller'
+
+  const query = supabase.from('consorciados').select('*').eq('id', id)
+  const { data: c } = role === 'seller'
+    ? await query.eq('seller_id', user.id).single()
+    : await query.single()
   if (!c) notFound()
 
   const con = c as {

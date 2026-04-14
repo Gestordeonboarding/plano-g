@@ -12,11 +12,18 @@ export default async function ConsorCiadosPage() {
   const tenantId = await getViewingTenantId()
   if (!tenantId) redirect('/login')
 
-  const { data } = await supabase
+  const { data: userData } = await supabase.from('users').select('role').eq('id', user.id).single()
+  const role = (userData as { role: string } | null)?.role || 'seller'
+
+  const query = supabase
     .from('consorciados')
     .select('id, full_name, cpf, group_number, quota_number, administrator, contemplation_score, next_assembly_date, status, credit_value, installments_paid, total_installments')
     .eq('tenant_id', tenantId)
     .order('contemplation_score', { ascending: false })
+
+  const { data } = role === 'seller'
+    ? await query.eq('seller_id', user.id)
+    : await query
 
   const consorciados = (data || []) as Array<{
     id: string; full_name: string; cpf: string | null; group_number: string | null

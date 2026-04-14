@@ -12,6 +12,10 @@ export default async function RelatoriosPage() {
   const tenantId = await getViewingTenantId()
   if (!tenantId) redirect('/login')
 
+  const { data: userData } = await supabase.from('users').select('role').eq('id', user.id).single()
+  const role = (userData as { role: string } | null)?.role || 'seller'
+  const isSeller = role === 'seller'
+
   const today = new Date()
   const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOString()
   const firstOfLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1).toISOString()
@@ -28,31 +32,29 @@ export default async function RelatoriosPage() {
     sellers,
   ] = await Promise.all([
     // Todos os leads (sem limite — para análise de funil)
-    supabase.from('leads')
-      .select('id, status, created_at, qualification_score, asset_type, source, seller_id')
-      .eq('tenant_id', tenantId),
+    (isSeller
+      ? supabase.from('leads').select('id, status, created_at, qualification_score, asset_type, source, seller_id').eq('tenant_id', tenantId).eq('seller_id', user.id)
+      : supabase.from('leads').select('id, status, created_at, qualification_score, asset_type, source, seller_id').eq('tenant_id', tenantId)),
 
     // Leads deste mês
-    supabase.from('leads')
-      .select('id, status, qualification_score, seller_id')
-      .eq('tenant_id', tenantId)
-      .gte('created_at', firstOfMonth),
+    (isSeller
+      ? supabase.from('leads').select('id, status, qualification_score, seller_id').eq('tenant_id', tenantId).eq('seller_id', user.id).gte('created_at', firstOfMonth)
+      : supabase.from('leads').select('id, status, qualification_score, seller_id').eq('tenant_id', tenantId).gte('created_at', firstOfMonth)),
 
     // Leads últimos 6 meses para gráfico
-    supabase.from('leads')
-      .select('id, status, created_at')
-      .eq('tenant_id', tenantId)
-      .gte('created_at', firstOf6MonthsAgo),
+    (isSeller
+      ? supabase.from('leads').select('id, status, created_at').eq('tenant_id', tenantId).eq('seller_id', user.id).gte('created_at', firstOf6MonthsAgo)
+      : supabase.from('leads').select('id, status, created_at').eq('tenant_id', tenantId).gte('created_at', firstOf6MonthsAgo)),
 
     // Consorciados
-    supabase.from('consorciados')
-      .select('id, status, credit_value, contemplation_score, administrator, created_at')
-      .eq('tenant_id', tenantId),
+    (isSeller
+      ? supabase.from('consorciados').select('id, status, credit_value, contemplation_score, administrator, created_at').eq('tenant_id', tenantId).eq('seller_id', user.id)
+      : supabase.from('consorciados').select('id, status, credit_value, contemplation_score, administrator, created_at').eq('tenant_id', tenantId)),
 
     // Apresentações
-    supabase.from('presentations')
-      .select('id, status, view_count, created_at')
-      .eq('tenant_id', tenantId),
+    (isSeller
+      ? supabase.from('presentations').select('id, status, view_count, created_at').eq('tenant_id', tenantId).eq('seller_id', user.id)
+      : supabase.from('presentations').select('id, status, view_count, created_at').eq('tenant_id', tenantId)),
 
     // WhatsApp enviadas este mês
     supabase.from('whatsapp_messages')

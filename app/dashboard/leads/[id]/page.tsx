@@ -10,7 +10,13 @@ export default async function LeadPage({ params }: { params: Promise<{ id: strin
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: lead } = await supabase.from('leads').select('*').eq('id', id).single()
+  const { data: userData } = await supabase.from('users').select('role').eq('id', user.id).single()
+  const role = (userData as { role: string } | null)?.role || 'seller'
+
+  const query = supabase.from('leads').select('*').eq('id', id)
+  const { data: lead } = role === 'seller'
+    ? await query.eq('seller_id', user.id).single()
+    : await query.single()
   if (!lead) notFound()
 
   const { data: sellers } = await supabase

@@ -13,27 +13,38 @@ export default async function DashboardPage() {
   const tenantId = await getViewingTenantId()
   if (!tenantId) redirect('/login')
 
-  const u = { tenant_id: tenantId, role: 'tenant_admin' }
+  const { data: userData } = await supabase.from('users').select('role').eq('id', user.id).single()
+  const role = (userData as { role: string } | null)?.role || 'seller'
+  const isSeller = role === 'seller'
 
   const today = new Date()
   const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOString()
   const in30Days = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
 
+  const leadsBase = supabase.from('leads').eq('tenant_id', tenantId)
+  const consBase = supabase.from('consorciados').eq('tenant_id', tenantId)
+
   const [leadsHoje, leadesMes, consorciados, proximasAssembleias, sellers] = await Promise.all([
-    supabase.from('leads').select('id').eq('tenant_id', u.tenant_id)
+    (isSeller
+      ? supabase.from('leads').select('id').eq('tenant_id', tenantId).eq('seller_id', user.id)
+      : supabase.from('leads').select('id').eq('tenant_id', tenantId))
       .gte('created_at', new Date().toISOString().split('T')[0]),
-    supabase.from('leads').select('id, status').eq('tenant_id', u.tenant_id)
+    (isSeller
+      ? supabase.from('leads').select('id, status').eq('tenant_id', tenantId).eq('seller_id', user.id)
+      : supabase.from('leads').select('id, status').eq('tenant_id', tenantId))
       .gte('created_at', firstOfMonth),
-    supabase.from('consorciados').select('id').eq('tenant_id', u.tenant_id).eq('status', 'ativo'),
-    supabase.from('consorciados')
-      .select('id, full_name, group_number, quota_number, next_assembly_date, contemplation_score')
-      .eq('tenant_id', u.tenant_id)
+    (isSeller
+      ? supabase.from('consorciados').select('id').eq('tenant_id', tenantId).eq('seller_id', user.id).eq('status', 'ativo')
+      : supabase.from('consorciados').select('id').eq('tenant_id', tenantId).eq('status', 'ativo')),
+    (isSeller
+      ? supabase.from('consorciados').select('id, full_name, group_number, quota_number, next_assembly_date, contemplation_score').eq('tenant_id', tenantId).eq('seller_id', user.id)
+      : supabase.from('consorciados').select('id, full_name, group_number, quota_number, next_assembly_date, contemplation_score').eq('tenant_id', tenantId))
       .not('next_assembly_date', 'is', null)
       .lte('next_assembly_date', in30Days)
       .gte('next_assembly_date', today.toISOString().split('T')[0])
       .order('next_assembly_date', { ascending: true })
       .limit(10),
-    supabase.from('users').select('id, full_name, email').eq('tenant_id', u.tenant_id).eq('role', 'seller'),
+    supabase.from('users').select('id, full_name, email').eq('tenant_id', tenantId).eq('role', 'seller'),
   ])
 
   const totalLeadesMes = leadesMes.data?.length || 0
