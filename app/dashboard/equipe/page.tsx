@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { getViewingTenantId } from '@/lib/supabase/get-tenant'
+import { cookies } from 'next/headers'
 import { createClient as createAdmin } from '@supabase/supabase-js'
 import EquipeAdminClient from './EquipeAdminClient'
 import NovoVendedorForm from './NovoVendedorForm'
@@ -17,8 +17,28 @@ export default async function EquipePage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const tenantId = await getViewingTenantId()
-  if (!tenantId) redirect('/dashboard')
+  // Use admin client to bypass RLS when reading user role
+  const { data: userData } = await admin
+    .from('users')
+    .select('role, tenant_id')
+    .eq('id', user.id)
+    .single()
+
+  const role = (userData as { role: string; tenant_id: string | null } | null)?.role || 'seller'
+
+  // Only tenant_admin and agency_admin can access this page
+  if (role === 'seller') redirect('/dashboard')
+
+  let tenantId: string | null = null
+
+  if (role === 'agency_admin') {
+    const cookieStore = await cookies()
+    tenantId = cookieStore.get('pgViewAs')?.value ?? null
+    if (!tenantId) redirect('/admin/franqueados')
+  } else {
+    tenantId = (userData as { role: string; tenant_id: string | null } | null)?.tenant_id ?? null
+    if (!tenantId) redirect('/dashboard')
+  }
 
   const currentMonth = new Date().toISOString().slice(0, 7)
   const firstOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()
