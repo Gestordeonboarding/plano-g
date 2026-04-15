@@ -71,9 +71,6 @@ export default async function DashboardPage() {
   const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOString()
   const in30Days = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
 
-  const leadsBase = supabase.from('leads').eq('tenant_id', tenantId)
-  const consBase = supabase.from('consorciados').eq('tenant_id', tenantId)
-
   const [leadsHoje, leadesMes, consorciados, proximasAssembleias, sellers] = await Promise.all([
     (isSeller
       ? supabase.from('leads').select('id').eq('tenant_id', tenantId).eq('seller_id', user.id)

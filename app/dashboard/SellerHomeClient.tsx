@@ -54,7 +54,7 @@ function Avatar({ url, name, size = 48, highlight = false }: { url: string | nul
 
 function AnimatedNumber({ value, prefix = '', suffix = '', duration = 1200 }: { value: number; prefix?: string; suffix?: string; duration?: number }) {
   const [display, setDisplay] = useState(0)
-  const rafRef = useRef<number>()
+  const rafRef = useRef<number | undefined>(undefined)
   useEffect(() => {
     const start = Date.now()
     const from = 0
