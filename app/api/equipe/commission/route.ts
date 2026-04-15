@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { cookies } from 'next/headers'
 import { createClient as createAdmin } from '@supabase/supabase-js'
 
 const admin = createAdmin(
@@ -15,13 +16,23 @@ export async function POST(req: Request) {
     if (!user) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
 
     const { data: userData } = await admin.from('users').select('role, tenant_id').eq('id', user.id).single()
-    const u = userData as { role: string; tenant_id: string } | null
+    const u = userData as { role: string; tenant_id: string | null } | null
     if (!u || u.role === 'seller') return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
+
+    // Resolve effective tenant — agency_admin uses pgViewAs cookie
+    let tenantId: string | null
+    if (u.role === 'agency_admin') {
+      const cookieStore = await cookies()
+      tenantId = cookieStore.get('pgViewAs')?.value ?? null
+    } else {
+      tenantId = u.tenant_id
+    }
+    if (!tenantId) return NextResponse.json({ error: 'Tenant não encontrado' }, { status: 400 })
 
     const { seller_id, rate_percent, monthly_goal_leads, monthly_goal_credit } = await req.json()
 
     await admin.from('seller_commissions').upsert({
-      tenant_id: u.tenant_id,
+      tenant_id: tenantId,
       seller_id,
       rate_percent: Number(rate_percent),
       monthly_goal_leads: Number(monthly_goal_leads),
