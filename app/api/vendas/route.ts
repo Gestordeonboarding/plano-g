@@ -21,6 +21,7 @@ export async function POST(request: Request) {
       )
     }
 
+    // A API key identifica a empresa automaticamente (companyId = tenant_id)
     const { data: tenant } = await admin
       .from('tenants')
       .select('id, name')
@@ -30,7 +31,7 @@ export async function POST(request: Request) {
 
     if (!tenant) {
       return NextResponse.json(
-        { error: 'API key inválida ou tenant inativo.' },
+        { error: 'API key inválida ou empresa inativa.' },
         { status: 403 }
       )
     }
@@ -39,10 +40,11 @@ export async function POST(request: Request) {
 
     // Leitura e validação do body
     const body = await request.json()
-    const { clienteNome, clienteTelefone, data } = body as {
+    const { clienteNome, clienteTelefone, data, companyId } = body as {
       clienteNome?: string
       clienteTelefone?: string
       data?: string
+      companyId?: string
     }
 
     if (!clienteNome || !clienteTelefone || !data) {
@@ -52,7 +54,16 @@ export async function POST(request: Request) {
       )
     }
 
-    // Valida o formato da data (aceita YYYY-MM-DD ou ISO 8601)
+    // Se o caller enviou companyId, confirma que bate com o tenant da API key
+    // Isso evita que uma API key registre vendas em outro companyId
+    if (companyId && companyId !== t.id) {
+      return NextResponse.json(
+        { error: 'companyId não corresponde à empresa autenticada pela API key.' },
+        { status: 403 }
+      )
+    }
+
+    // Valida o formato da data
     const dataVenda = new Date(data)
     if (isNaN(dataVenda.getTime())) {
       return NextResponse.json(
@@ -61,11 +72,11 @@ export async function POST(request: Request) {
       )
     }
 
-    // Insere a venda na tabela consorciados
+    // Insere a venda — tenant_id é o companyId no banco
     const { data: venda, error } = await admin
       .from('consorciados')
       .insert({
-        tenant_id: t.id,
+        tenant_id: t.id,          // companyId
         full_name: clienteNome.trim(),
         phone: clienteTelefone.trim(),
         status: 'ativo',
@@ -73,15 +84,27 @@ export async function POST(request: Request) {
         installments_paid: 0,
         created_at: dataVenda.toISOString(),
       })
-      .select('id, full_name, phone, status, created_at')
+      .select('id, full_name, phone, status, created_at, tenant_id')
       .single()
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 })
     }
 
+    const v = venda as { id: string; full_name: string; phone: string; status: string; created_at: string; tenant_id: string }
+
     return NextResponse.json(
-      { success: true, venda },
+      {
+        success: true,
+        venda: {
+          id: v.id,
+          clienteNome: v.full_name,
+          clienteTelefone: v.phone,
+          data: v.created_at,
+          companyId: v.tenant_id,   // retorna no mesmo nome que o caller enviou
+          status: v.status,
+        },
+      },
       { status: 201 }
     )
   } catch (err) {
