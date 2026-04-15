@@ -27,6 +27,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const viewAsTenantId = cookieStore.get('pgViewAs')?.value
   const isViewingAs = u.role === 'agency_admin' && !!viewAsTenantId
 
+  // Role efetivo para controle da sidebar
+  const sidebarRole = (isViewingAs ? 'agency_admin' : u.role) as 'seller' | 'tenant_admin' | 'agency_admin'
+
   const effectiveTenantId = isViewingAs ? viewAsTenantId : u.tenant_id
 
   // Se não é agency_admin e não tem tenant, bloqueia
@@ -44,7 +47,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <div className="flex min-h-screen" style={{ backgroundColor: 'var(--bg-primary)' }}>
-      <DashboardSidebar tenantName={t?.name || 'Escritório'} />
+      <DashboardSidebar tenantName={t?.name || 'Escritório'} role={sidebarRole} />
 
       <div className="flex-1 flex flex-col min-w-0">
         {/* Banner de impersonação */}

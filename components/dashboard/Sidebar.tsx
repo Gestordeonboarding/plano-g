@@ -9,30 +9,35 @@ import {
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 
-const navItems = [
-  { href: '/dashboard', label: 'Início', icon: LayoutDashboard, exact: true },
-  { href: '/dashboard/leads', label: 'Leads', icon: Users },
-  { href: '/dashboard/consorciados', label: 'Consorciados', icon: UserCheck },
-  { href: '/dashboard/importar', label: 'Importar dados', icon: Upload },
-  { href: '/dashboard/apresentacoes', label: 'Apresentações', icon: Presentation, isNew: true },
-  { href: '/dashboard/conexoes', label: 'Conexões', icon: Wifi },
-  { href: '/dashboard/conversas', label: 'Conversas', icon: MessageSquare },
-  { href: '/dashboard/notificacoes', label: 'Notificações', icon: Bell },
-  { href: '/dashboard/analytics', label: 'Analytics', icon: LineChart },
-  { href: '/dashboard/automacoes', label: 'Automações', icon: Zap },
-  { href: '/dashboard/relatorios', label: 'Relatórios', icon: BarChart3 },
-  { href: '/dashboard/api', label: 'API de Leads', icon: Code },
-  { href: '/dashboard/equipe', label: 'Equipe', icon: UsersRound },
-  { href: '/dashboard/configuracoes', label: 'Configurações', icon: Settings },
+type Role = 'seller' | 'tenant_admin' | 'agency_admin'
+
+const allNavItems = [
+  { href: '/dashboard',                  label: 'Início',         icon: LayoutDashboard, exact: true,  roles: ['seller', 'tenant_admin', 'agency_admin'] },
+  { href: '/dashboard/leads',            label: 'Leads',          icon: Users,                          roles: ['seller', 'tenant_admin', 'agency_admin'] },
+  { href: '/dashboard/consorciados',     label: 'Consorciados',   icon: UserCheck,                      roles: ['seller', 'tenant_admin', 'agency_admin'] },
+  { href: '/dashboard/apresentacoes',    label: 'Apresentações',  icon: Presentation, isNew: true,      roles: ['seller', 'tenant_admin', 'agency_admin'] },
+  { href: '/dashboard/conversas',        label: 'Conversas',      icon: MessageSquare,                  roles: ['seller', 'tenant_admin', 'agency_admin'] },
+  { href: '/dashboard/notificacoes',     label: 'Notificações',   icon: Bell,                           roles: ['seller', 'tenant_admin', 'agency_admin'] },
+  { href: '/dashboard/relatorios',       label: 'Relatórios',     icon: BarChart3,                      roles: ['seller', 'tenant_admin', 'agency_admin'] },
+  { href: '/dashboard/importar',         label: 'Importar dados', icon: Upload,                         roles: ['tenant_admin', 'agency_admin'] },
+  { href: '/dashboard/conexoes',         label: 'Conexões',       icon: Wifi,                           roles: ['tenant_admin', 'agency_admin'] },
+  { href: '/dashboard/analytics',        label: 'Analytics',      icon: LineChart,                      roles: ['tenant_admin', 'agency_admin'] },
+  { href: '/dashboard/automacoes',       label: 'Automações',     icon: Zap,                            roles: ['tenant_admin', 'agency_admin'] },
+  { href: '/dashboard/equipe',           label: 'Equipe',         icon: UsersRound,                     roles: ['tenant_admin', 'agency_admin'] },
+  { href: '/dashboard/api',              label: 'API de Leads',   icon: Code,                           roles: ['tenant_admin', 'agency_admin'] },
+  { href: '/dashboard/configuracoes',    label: 'Configurações',  icon: Settings,                       roles: ['tenant_admin', 'agency_admin'] },
 ]
 
 interface SidebarProps {
   tenantName: string
+  role: Role
 }
 
-export default function DashboardSidebar({ tenantName }: SidebarProps) {
+export default function DashboardSidebar({ tenantName, role }: SidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
+
+  const navItems = allNavItems.filter(item => item.roles.includes(role))
 
   async function handleLogout() {
     const supabase = createClient()
