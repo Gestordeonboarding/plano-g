@@ -21,7 +21,7 @@ export async function GET() {
     const firstOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()
 
     const [sellersRes, leadsRes, commissionsRes] = await Promise.all([
-      admin.from('users').select('id, full_name, avatar_url').eq('tenant_id', tenantId).eq('role', 'seller').eq('is_active', true),
+      admin.from('users').select('id, full_name, avatar_url').eq('tenant_id', tenantId).in('role', ['seller', 'tenant_admin']).eq('is_active', true),
       admin.from('leads').select('seller_id, desired_credit').eq('tenant_id', tenantId).eq('status', 'convertido').gte('created_at', firstOfMonth),
       admin.from('seller_commissions').select('seller_id, rate_percent').eq('tenant_id', tenantId),
     ])

@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { TrendingUp, Users, UserCheck, Target, Calendar } from 'lucide-react'
 import { getViewingTenantId } from '@/lib/supabase/get-tenant'
 import SellerHomeClient from './SellerHomeClient'
+import AdminSellerStats from './AdminSellerStats'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -68,8 +69,36 @@ export default async function DashboardPage() {
   }
 
   const today = new Date()
+  const currentMonth = new Date().toISOString().slice(0, 7)
   const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOString()
   const in30Days = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+
+  // ── Dados pessoais de vendas do tenant_admin (ele também vende) ──
+  const isAdmin = role === 'tenant_admin'
+  const [adminCommRes, adminMyLeadsRes, adminAllMembersRes, adminAllLeadsRes] = isAdmin
+    ? await Promise.all([
+        db.from('seller_commissions').select('*').eq('tenant_id', tenantId).eq('seller_id', user.id).limit(1),
+        db.from('leads').select('id, desired_credit').eq('tenant_id', tenantId).eq('seller_id', user.id).eq('status', 'convertido').gte('created_at', firstOfMonth),
+        db.from('users').select('id, full_name, avatar_url').eq('tenant_id', tenantId).in('role', ['seller', 'tenant_admin']).eq('is_active', true),
+        db.from('leads').select('seller_id, desired_credit').eq('tenant_id', tenantId).eq('status', 'convertido').gte('created_at', firstOfMonth),
+      ])
+    : [{ data: null }, { data: [] }, { data: [] }, { data: [] }]
+
+  const adminCommission = (adminCommRes.data as { rate_percent: number; monthly_goal_leads: number; monthly_goal_credit: number }[] | null)?.[0] ?? null
+  const adminMyLeads = (adminMyLeadsRes.data || []) as Array<{ id: string; desired_credit: number | null }>
+  const adminAllMembers = (adminAllMembersRes.data || []) as Array<{ id: string; full_name: string | null; avatar_url: string | null }>
+  const adminAllLeads = (adminAllLeadsRes.data || []) as Array<{ seller_id: string | null; desired_credit: number | null }>
+
+  const adminMyCredit = adminMyLeads.reduce((sum, l) => sum + (l.desired_credit || 0), 0)
+  const adminCommEarned = adminMyCredit * ((adminCommission?.rate_percent || 0) / 100)
+  const adminRanking = adminAllMembers.map(s => {
+    const mine = adminAllLeads.filter(l => l.seller_id === s.id)
+    const credit = mine.reduce((sum, l) => sum + (l.desired_credit || 0), 0)
+    const commission_earned = credit * ((adminCommission && s.id === user.id ? adminCommission.rate_percent : 0) / 100)
+    return { ...s, converted: mine.length, credit, commission_earned }
+  }).sort((a, b) => b.converted - a.converted || b.credit - a.credit)
+
+  const adminName = (userData as { role: string; full_name: string | null } | null)?.full_name || 'Administrador'
 
   const [leadsHoje, leadesMes, consorciados, proximasAssembleias, sellers] = await Promise.all([
     (isSeller
@@ -113,6 +142,20 @@ export default async function DashboardPage() {
           Resumo do seu escritório
         </p>
       </div>
+
+      {/* Stats pessoais do admin como vendedor */}
+      {isAdmin && (
+        <AdminSellerStats
+          userId={user.id}
+          adminName={adminName}
+          commission={adminCommission}
+          convertedCount={adminMyLeads.length}
+          creditSold={adminMyCredit}
+          commissionEarned={adminCommEarned}
+          initialRanking={adminRanking}
+          currentMonth={currentMonth}
+        />
+      )}
 
       {/* Cards de métricas */}
       <div className="grid grid-cols-4 gap-4">

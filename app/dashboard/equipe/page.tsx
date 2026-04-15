@@ -47,7 +47,7 @@ export default async function EquipePage() {
     admin.from('users')
       .select('id, full_name, email, avatar_url, is_active, created_at, whatsapp_phone')
       .eq('tenant_id', tenantId)
-      .eq('role', 'seller')
+      .in('role', ['seller', 'tenant_admin'])
       .order('created_at'),
     admin.from('leads')
       .select('seller_id, desired_credit')
