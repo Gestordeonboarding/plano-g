@@ -57,3 +57,45 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: String(err) }, { status: 500 })
   }
 }
+
+export async function DELETE(req: Request) {
+  try {
+    const authClient = await createClient()
+    const { data: { user } } = await authClient.auth.getUser()
+    if (!user) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
+
+    const { data: userData } = await admin.from('users').select('role, tenant_id').eq('id', user.id).single()
+    const u = userData as { role: string; tenant_id: string | null } | null
+    if (!u || u.role === 'seller') return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
+
+    // Resolve effective tenant — agency_admin uses pgViewAs cookie
+    let tenantId: string | null
+    if (u.role === 'agency_admin') {
+      const cookieStore = await cookies()
+      tenantId = cookieStore.get('pgViewAs')?.value ?? null
+    } else {
+      tenantId = u.tenant_id
+    }
+    if (!tenantId) return NextResponse.json({ error: 'Tenant não encontrado' }, { status: 400 })
+
+    const { seller_id } = await req.json()
+    if (!seller_id) return NextResponse.json({ error: 'seller_id obrigatório' }, { status: 400 })
+
+    // Verify seller belongs to this tenant
+    const { data: seller } = await admin.from('users').select('id').eq('id', seller_id).eq('tenant_id', tenantId).single()
+    if (!seller) return NextResponse.json({ error: 'Vendedor não encontrado' }, { status: 404 })
+
+    // Remove both jpg and png variants from storage (ignore errors if file doesn't exist)
+    await Promise.allSettled([
+      admin.storage.from('seller-photos').remove([`${tenantId}/${seller_id}.jpg`]),
+      admin.storage.from('seller-photos').remove([`${tenantId}/${seller_id}.png`]),
+    ])
+
+    // Clear avatar_url in users table
+    await admin.from('users').update({ avatar_url: null }).eq('id', seller_id)
+
+    return NextResponse.json({ success: true })
+  } catch (err) {
+    return NextResponse.json({ error: String(err) }, { status: 500 })
+  }
+}

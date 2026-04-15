@@ -159,6 +159,21 @@ export default function EquipeAdminClient({ tenantId, sellers, monthLeads, commi
     e.target.value = ''
   }
 
+  async function handleDeletePhoto(sellerId: string) {
+    setUploading(sellerId)
+    const res = await fetch('/api/equipe/photo', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ seller_id: sellerId }),
+    })
+    if (res.ok) {
+      setLocalAvatars(prev => { const next = { ...prev }; delete next[sellerId]; return next })
+      // Also clear from the sellers list so the avatar won't show on re-render
+      sellers.forEach(s => { if (s.id === sellerId) s.avatar_url = null })
+    }
+    setUploading(null)
+  }
+
   // Podium order: 2nd, 1st, 3rd
   const top3 = [ranking[1], ranking[0], ranking[2]].filter(Boolean)
   const podiumOrder = [1, 0, 2] // display order → original rank
@@ -325,20 +340,28 @@ export default function EquipeAdminClient({ tenantId, sellers, monthLeads, commi
               }}>
                 {/* Header */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px' }}>
-                  {/* Avatar with upload */}
-                  <div style={{ position: 'relative', cursor: 'pointer' }} onClick={() => handlePhotoClick(s.id)}>
+                  {/* Avatar with upload/delete */}
+                  <div style={{ position: 'relative' }}>
                     <Avatar url={avatarSrc} name={s.full_name} size={44} />
-                    <div style={{
-                      position: 'absolute', inset: 0, borderRadius: '50%',
-                      background: uploading === s.id ? 'rgba(0,0,0,0.5)' : 'rgba(0,0,0,0)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      transition: 'background 0.2s',
-                    }}
-                      onMouseEnter={e => (e.currentTarget.style.background = 'rgba(0,0,0,0.4)')}
-                      onMouseLeave={e => (e.currentTarget.style.background = 'rgba(0,0,0,0)')}
-                    >
-                      <Camera size={14} color="#fff" />
-                    </div>
+                    {uploading === s.id ? (
+                      <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <span style={{ fontSize: 10, color: '#fff' }}>...</span>
+                      </div>
+                    ) : (
+                      <div className="photo-actions" style={{ position: 'absolute', inset: 0, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, background: 'rgba(0,0,0,0)', transition: 'background 0.2s' }}
+                        onMouseEnter={e => (e.currentTarget.style.background = 'rgba(0,0,0,0.55)')}
+                        onMouseLeave={e => (e.currentTarget.style.background = 'rgba(0,0,0,0)')}
+                      >
+                        <button title="Trocar foto" onClick={() => handlePhotoClick(s.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, display: 'flex' }}>
+                          <Camera size={13} color="#fff" />
+                        </button>
+                        {avatarSrc && (
+                          <button title="Remover foto" onClick={() => handleDeletePhoto(s.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, display: 'flex' }}>
+                            <X size={13} color="#ff6b6b" />
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <div style={{ flex: 1 }}>
                     <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>{s.full_name || '—'}</p>
