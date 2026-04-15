@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 import { formatCurrency, formatDate, formatPhone, formatCPF, daysUntil } from '@/lib/utils'
 import ActivatePortalButton from './ActivatePortalButton'
+import EditConsorciado from './EditConsorciado'
 
 export default async function ConsorCiadoPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -85,7 +86,10 @@ export default async function ConsorCiadoPage({ params }: { params: Promise<{ id
               {con.email && <span>· {con.email}</span>}
             </div>
           </div>
-          <ActivatePortalButton consorciado={c as Record<string, unknown>} hasUser={!!con.user_id} />
+          <div className="flex items-center gap-2">
+            <EditConsorciado con={con} />
+            <ActivatePortalButton consorciado={c as Record<string, unknown>} hasUser={!!con.user_id} />
+          </div>
         </div>
 
         <div className="grid grid-cols-3 gap-4">
