@@ -1,94 +1,54 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { formatDate } from '@/lib/utils'
 import { getViewingTenantId } from '@/lib/supabase/get-tenant'
+import EquipeAdminClient from './EquipeAdminClient'
 import NovoVendedorForm from './NovoVendedorForm'
-import { createClient as createAdmin } from '@supabase/supabase-js'
-import { Smartphone } from 'lucide-react'
-
-const supabaseAdmin = createAdmin(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { autoRefreshToken: false, persistSession: false } }
-)
 
 export default async function EquipePage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const authClient = await createClient()
+  const db = await createServiceClient()
+
+  const { data: { user } } = await authClient.auth.getUser()
   if (!user) redirect('/login')
 
   const tenantId = await getViewingTenantId()
   if (!tenantId) redirect('/dashboard')
 
-  const { data } = await supabaseAdmin
-    .from('users')
-    .select('id, full_name, email, role, is_active, created_at, whatsapp_phone, zapi_instance_id')
-    .eq('tenant_id', tenantId)
-    .order('created_at', { ascending: false })
+  const { data: userData } = await db.from('users').select('role').eq('id', user.id).single()
+  const role = (userData as { role: string } | null)?.role
+  if (role === 'seller') redirect('/dashboard')
 
-  const sellers = (data || []) as Array<{
-    id: string; full_name: string | null; email: string | null
-    role: string; is_active: boolean; created_at: string
-    whatsapp_phone: string | null; zapi_instance_id: string | null
-  }>
+  const currentMonth = new Date().toISOString().slice(0, 7)
+  const firstOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()
+
+  const [sellersRes, leadsRes, commissionsRes, prizesRes] = await Promise.all([
+    db.from('users')
+      .select('id, full_name, email, avatar_url, is_active, created_at, whatsapp_phone')
+      .eq('tenant_id', tenantId)
+      .eq('role', 'seller')
+      .order('created_at'),
+    db.from('leads')
+      .select('seller_id, desired_credit')
+      .eq('tenant_id', tenantId)
+      .eq('status', 'convertido')
+      .gte('created_at', firstOfMonth),
+    db.from('seller_commissions').select('*').eq('tenant_id', tenantId),
+    db.from('seller_prizes').select('*').eq('tenant_id', tenantId).eq('month', currentMonth),
+  ])
 
   return (
-    <div className="max-w-3xl flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>Equipe</h1>
-        <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
-          {sellers.length} membro{sellers.length !== 1 ? 's' : ''} cadastrado{sellers.length !== 1 ? 's' : ''}
-        </p>
-      </div>
-
-      <NovoVendedorForm tenantId={tenantId} />
-
-      <div className="card-pg overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr style={{ backgroundColor: 'var(--bg-tertiary)' }}>
-              {['Nome', 'Email', 'Cargo', 'WhatsApp', 'Status', 'Desde'].map((h) => (
-                <th key={h} className="text-left px-4 py-3 font-medium" style={{ color: 'var(--text-secondary)' }}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {sellers.map((s) => (
-              <tr key={s.id} style={{ borderTop: '1px solid var(--border-color)' }}>
-                <td className="px-4 py-3 font-medium" style={{ color: 'var(--text-primary)' }}>{s.full_name || '—'}</td>
-                <td className="px-4 py-3" style={{ color: 'var(--text-secondary)' }}>{s.email}</td>
-                <td className="px-4 py-3" style={{ color: 'var(--text-secondary)' }}>
-                  {s.role === 'tenant_admin' ? 'Admin' : 'Vendedor'}
-                </td>
-                <td className="px-4 py-3">
-                  {s.whatsapp_phone ? (
-                    <div className="flex items-center gap-1.5">
-                      <Smartphone size={13} color="#25D366" />
-                      <span className="text-xs font-medium" style={{ color: '#25D366' }}>
-                        +{s.whatsapp_phone}
-                      </span>
-                    </div>
-                  ) : s.zapi_instance_id ? (
-                    <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                      Configurado · sem QR
-                    </span>
-                  ) : (
-                    <span className="text-xs" style={{ color: 'var(--text-muted)' }}>—</span>
-                  )}
-                </td>
-                <td className="px-4 py-3">
-                  <span className="text-xs px-2 py-0.5 rounded-full font-semibold"
-                    style={s.is_active
-                      ? { backgroundColor: 'rgba(0,212,200,0.15)', color: 'var(--accent)' }
-                      : { backgroundColor: 'rgba(255,92,92,0.15)', color: 'var(--danger)' }}>
-                    {s.is_active ? 'Ativo' : 'Inativo'}
-                  </span>
-                </td>
-                <td className="px-4 py-3" style={{ color: 'var(--text-secondary)' }}>{formatDate(s.created_at)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+    <div className="flex flex-col gap-6">
+      <EquipeAdminClient
+        tenantId={tenantId}
+        sellers={(sellersRes.data || []) as any[]}
+        monthLeads={(leadsRes.data || []) as any[]}
+        commissions={(commissionsRes.data || []) as any[]}
+        prizes={(prizesRes.data || []) as any[]}
+        currentMonth={currentMonth}
+      />
+      <div className="card-pg p-5">
+        <p className="font-semibold text-sm mb-4" style={{ color: 'var(--text-primary)' }}>Adicionar novo vendedor</p>
+        <NovoVendedorForm tenantId={tenantId} />
       </div>
     </div>
   )

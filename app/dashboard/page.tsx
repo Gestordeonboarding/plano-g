@@ -1,21 +1,71 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { formatDate, daysUntil } from '@/lib/utils'
 import Link from 'next/link'
 import { TrendingUp, Users, UserCheck, Target, Calendar } from 'lucide-react'
 import { getViewingTenantId } from '@/lib/supabase/get-tenant'
+import SellerHomeClient from './SellerHomeClient'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
+  const db = await createServiceClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
   const tenantId = await getViewingTenantId()
   if (!tenantId) redirect('/login')
 
-  const { data: userData } = await supabase.from('users').select('role').eq('id', user.id).single()
+  const { data: userData } = await db.from('users').select('role, full_name, avatar_url').eq('id', user.id).single()
   const role = (userData as { role: string } | null)?.role || 'seller'
   const isSeller = role === 'seller'
+
+  // ── Seller view ──────────────────────────────────────────────
+  if (isSeller) {
+    const u = userData as { role: string; full_name: string | null; avatar_url: string | null }
+    const currentMonth = new Date().toISOString().slice(0, 7)
+    const firstOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()
+
+    const [commRes, prizeRes, allSellersRes, allLeadsRes, myLeadsRes] = await Promise.all([
+      db.from('seller_commissions').select('*').eq('tenant_id', tenantId).eq('seller_id', user.id).limit(1),
+      db.from('seller_prizes').select('*').eq('tenant_id', tenantId).eq('seller_id', user.id).eq('month', currentMonth).limit(1),
+      db.from('users').select('id, full_name, avatar_url').eq('tenant_id', tenantId).eq('role', 'seller').eq('is_active', true),
+      db.from('leads').select('seller_id, desired_credit').eq('tenant_id', tenantId).eq('status', 'convertido').gte('created_at', firstOfMonth),
+      db.from('leads').select('id, desired_credit').eq('tenant_id', tenantId).eq('seller_id', user.id).eq('status', 'convertido').gte('created_at', firstOfMonth),
+    ])
+
+    const commission = (commRes.data?.[0] as { rate_percent: number; monthly_goal_leads: number; monthly_goal_credit: number } | null) ?? null
+    const prize = (prizeRes.data?.[0] as { prize_description: string; is_revealed: boolean } | null) ?? null
+    const allSellers = (allSellersRes.data || []) as Array<{ id: string; full_name: string | null; avatar_url: string | null }>
+    const allLeads = (allLeadsRes.data || []) as Array<{ seller_id: string | null; desired_credit: number | null }>
+    const myLeads = (myLeadsRes.data || []) as Array<{ id: string; desired_credit: number | null }>
+
+    const initialRanking = allSellers.map(s => {
+      const mine = allLeads.filter(l => l.seller_id === s.id)
+      const credit = mine.reduce((sum, l) => sum + (l.desired_credit || 0), 0)
+      const comm = commission && s.id === user.id ? commission : null
+      const commission_earned = credit * ((comm?.rate_percent || 0) / 100)
+      return { ...s, converted: mine.length, credit, commission_earned }
+    }).sort((a, b) => b.converted - a.converted || b.credit - a.credit)
+
+    const myCredit = myLeads.reduce((sum, l) => sum + (l.desired_credit || 0), 0)
+    const commEarned = myCredit * ((commission?.rate_percent || 0) / 100)
+
+    return (
+      <SellerHomeClient
+        userId={user.id}
+        tenantId={tenantId}
+        sellerName={u.full_name || 'Vendedor'}
+        avatarUrl={u.avatar_url}
+        commission={commission}
+        prize={prize}
+        initialRanking={initialRanking}
+        convertedCount={myLeads.length}
+        creditSold={myCredit}
+        commissionEarned={commEarned}
+        currentMonth={currentMonth}
+      />
+    )
+  }
 
   const today = new Date()
   const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOString()
