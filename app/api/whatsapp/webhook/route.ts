@@ -7,64 +7,85 @@ const supabaseAdmin = createAdmin(
   { auth: { autoRefreshToken: false, persistSession: false } }
 )
 
-type ZApiPayload = {
-  instanceId?: string
-  phone?: string
-  senderName?: string
-  type?: string
-  connected?: boolean
-  text?: { message?: string }
-  image?: { caption?: string }
+// Evolution API webhook payload types
+type EvolutionPayload = {
+  event: string
+  instance: string
+  data?: {
+    // messages.upsert
+    key?: {
+      remoteJid?: string
+      fromMe?: boolean
+      id?: string
+    }
+    pushName?: string
+    message?: {
+      conversation?: string
+      extendedTextMessage?: { text?: string }
+      imageMessage?: { caption?: string }
+      videoMessage?: { caption?: string }
+      documentMessage?: { title?: string }
+      audioMessage?: Record<string, unknown>
+    }
+    // connection.update
+    state?: string
+    // qrcode.updated
+    qrcode?: { base64?: string; code?: string }
+  }
+}
+
+function extractMessage(message?: EvolutionPayload['data']['message']): string {
+  if (!message) return ''
+  return (
+    message.conversation ||
+    message.extendedTextMessage?.text ||
+    message.imageMessage?.caption ||
+    message.videoMessage?.caption ||
+    message.documentMessage?.title ||
+    (message.audioMessage ? '🎵 Áudio' : '') ||
+    ''
+  )
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const payload = await request.json() as ZApiPayload
-    const { instanceId } = payload
-    if (!instanceId) return NextResponse.json({ ok: true })
+    const payload = await request.json() as EvolutionPayload
+    const { event, instance: instanceName, data } = payload
 
-    // Find owner — first check tenants (main connection), then users (per-seller)
-    let tenantId: string | null = null
-    let sellerId: string | null = null
+    if (!instanceName) return NextResponse.json({ ok: true })
 
+    // Find tenant by instance name (stored in zapi_instance_id column)
     const { data: tenantData } = await supabaseAdmin
       .from('tenants')
       .select('id')
-      .eq('zapi_instance_id', instanceId)
+      .eq('zapi_instance_id', instanceName)
       .single()
 
-    if (tenantData) {
-      tenantId = (tenantData as { id: string }).id
-    } else {
-      const { data: userData } = await supabaseAdmin
-        .from('users')
-        .select('id, tenant_id')
-        .eq('zapi_instance_id', instanceId)
-        .single()
-      if (userData) {
-        const u = userData as { id: string; tenant_id: string }
-        tenantId = u.tenant_id
-        sellerId = u.id
-      }
-    }
+    if (!tenantData) return NextResponse.json({ ok: true })
 
-    if (!tenantId) return NextResponse.json({ ok: true })
+    const tenantId = (tenantData as { id: string }).id
 
-    // Connection event — save phone number
-    if (payload.connected === true && payload.phone) {
-      if (sellerId) {
-        await supabaseAdmin.from('users').update({ whatsapp_phone: payload.phone }).eq('id', sellerId)
-      } else {
-        await supabaseAdmin.from('tenants').update({ whatsapp_phone: payload.phone }).eq('id', tenantId)
+    // ── Connection state update ──────────────────────────────────────────────
+    if (event === 'connection.update') {
+      if (data?.state === 'open') {
+        // WhatsApp connected — phone number will come in a separate event
+        // If the remoteJid is available in future events, save it then
       }
       return NextResponse.json({ ok: true })
     }
 
-    // Incoming message
-    if (payload.type === 'ReceivedCallback' && payload.phone) {
-      const phone = payload.phone.replace(/\D/g, '')
-      const contactName = payload.senderName || phone
-      const message = payload.text?.message || payload.image?.caption || ''
+    // ── Incoming message ─────────────────────────────────────────────────────
+    if (event === 'messages.upsert') {
+      // Ignore messages sent by us
+      if (data?.key?.fromMe) return NextResponse.json({ ok: true })
+
+      const remoteJid = data?.key?.remoteJid || ''
+      // remoteJid format: "5511999999999@s.whatsapp.net" or "5511999999999@g.us" (group)
+      if (!remoteJid || remoteJid.endsWith('@g.us')) return NextResponse.json({ ok: true })
+
+      const phone = remoteJid.replace('@s.whatsapp.net', '').replace(/\D/g, '')
+      const contactName = data?.pushName || phone
+      const message = extractMessage(data?.message)
 
       // 1. Find or create conversation
       const { data: existingConv } = await supabaseAdmin
@@ -104,7 +125,6 @@ export async function POST(request: NextRequest) {
             .from('leads')
             .insert({
               tenant_id: tenantId,
-              seller_id: sellerId,
               full_name: contactName,
               phone,
               source: 'whatsapp',
@@ -147,7 +167,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ ok: true })
   } catch (err) {
-    console.error('Webhook Z-API error:', err)
+    console.error('Webhook Evolution error:', err)
     return NextResponse.json({ ok: true })
   }
 }

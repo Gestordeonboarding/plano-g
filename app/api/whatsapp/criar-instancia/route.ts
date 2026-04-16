@@ -9,7 +9,8 @@ const supabaseAdmin = createAdmin(
   { auth: { autoRefreshToken: false, persistSession: false } }
 )
 
-const ZAPI_ACCOUNT_TOKEN = process.env.ZAPI_ACCOUNT_TOKEN!
+const EVOLUTION_URL = process.env.EVOLUTION_API_URL!
+const EVOLUTION_KEY = process.env.EVOLUTION_API_KEY!
 const WEBHOOK_URL = `${process.env.NEXT_PUBLIC_APP_URL}/api/whatsapp/webhook`
 
 export async function POST(request: NextRequest) {
@@ -24,73 +25,51 @@ export async function POST(request: NextRequest) {
     // Check if already has instance
     const { data: tenant } = await supabaseAdmin
       .from('tenants')
-      .select('zapi_instance_id, zapi_token, name')
+      .select('zapi_instance_id, name')
       .eq('id', tenantId)
       .single()
 
-    const t = tenant as { zapi_instance_id: string | null; zapi_token: string | null; name: string } | null
+    const t = tenant as { zapi_instance_id: string | null; name: string } | null
 
-    if (t?.zapi_instance_id && t?.zapi_token) {
-      // Already configured — just return existing credentials
-      return NextResponse.json({ instanceId: t.zapi_instance_id, token: t.zapi_token })
+    if (t?.zapi_instance_id) {
+      // Instance already exists — return it
+      return NextResponse.json({ instanceName: t.zapi_instance_id })
     }
 
-    if (!ZAPI_ACCOUNT_TOKEN) {
-      return NextResponse.json({ error: 'Configuração da agência incompleta. Entre em contato com o suporte.' }, { status: 500 })
+    if (!EVOLUTION_URL || !EVOLUTION_KEY) {
+      return NextResponse.json({ error: 'Configuração do servidor incompleta. Entre em contato com o suporte.' }, { status: 500 })
     }
 
-    // Create new Z-API instance automatically
-    const slug = tenantId.slice(0, 8)
-    const instanceName = `planog-${slug}`
+    const instanceName = `planog-${tenantId.slice(0, 8)}`
 
-    const createRes = await fetch('https://api.z-api.io/instances', {
+    // Create instance in Evolution API
+    const createRes = await fetch(`${EVOLUTION_URL}/instance/create`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Client-Token': ZAPI_ACCOUNT_TOKEN,
+        'apikey': EVOLUTION_KEY,
       },
-      body: JSON.stringify({ name: instanceName }),
+      body: JSON.stringify({
+        instanceName,
+        webhook: WEBHOOK_URL,
+        webhookByEvents: false,
+        events: ['MESSAGES_UPSERT', 'CONNECTION_UPDATE'],
+      }),
     })
 
     if (!createRes.ok) {
       const err = await createRes.text()
-      console.error('Z-API create instance error:', err)
+      console.error('Evolution create instance error:', err)
       return NextResponse.json({ error: 'Não foi possível criar a conexão. Tente novamente.' }, { status: 502 })
     }
 
-    const created = await createRes.json() as {
-      id?: string
-      token?: string
-      instanceId?: string
-    }
-
-    const instanceId = created.id || created.instanceId
-    const instanceToken = created.token
-
-    if (!instanceId || !instanceToken) {
-      return NextResponse.json({ error: 'Resposta inesperada ao criar conexão.' }, { status: 502 })
-    }
-
-    // Set webhook automatically
-    await fetch(
-      `https://api.z-api.io/instances/${instanceId}/token/${instanceToken}/update-webhook-received`,
-      {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Client-Token': ZAPI_ACCOUNT_TOKEN,
-        },
-        body: JSON.stringify({ value: WEBHOOK_URL }),
-      }
-    )
-
-    // Save to tenant
+    // Save instance name to tenant
     await supabaseAdmin
       .from('tenants')
-      .update({ zapi_instance_id: instanceId, zapi_token: instanceToken })
+      .update({ zapi_instance_id: instanceName, zapi_token: null })
       .eq('id', tenantId)
 
-    return NextResponse.json({ instanceId, token: instanceToken })
+    return NextResponse.json({ instanceName })
   } catch (err) {
     console.error('criar-instancia error:', err)
     return NextResponse.json({ error: 'Erro interno.' }, { status: 500 })
