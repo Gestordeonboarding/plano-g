@@ -1,4 +1,5 @@
-import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/supabase/server'
+import { createClient as createAdmin } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
 import { formatCurrency } from '@/lib/utils'
 import Link from 'next/link'
@@ -20,7 +21,11 @@ function getTheme(t: string | null) {
 export default async function PortalHomePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
   const authClient = await createClient()
-  const db = await createServiceClient()
+  const db = createAdmin(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
 
   const { data: { user } } = await authClient.auth.getUser()
   if (!user) redirect(`/portal/${slug}/entrar`)

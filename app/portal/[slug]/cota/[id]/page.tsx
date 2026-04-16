@@ -1,4 +1,5 @@
-import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/supabase/server'
+import { createClient as createAdmin } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
 import { formatCurrency, formatDate, daysUntil } from '@/lib/utils'
 import Link from 'next/link'
@@ -27,7 +28,11 @@ function getTheme(t: string | null) {
 export default async function CotaPage({ params }: { params: Promise<{ slug: string; id: string }> }) {
   const { slug, id } = await params
   const authClient = await createClient()
-  const db = await createServiceClient()
+  const db = createAdmin(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
 
   const { data: { user } } = await authClient.auth.getUser()
   if (!user) redirect(`/portal/${slug}/entrar`)
@@ -35,21 +40,18 @@ export default async function CotaPage({ params }: { params: Promise<{ slug: str
   const { data: tenant } = await db.from('tenants').select('id').eq('slug', slug).single()
   if (!tenant) redirect(`/portal/${slug}/entrar`)
 
-  // Garante vínculo: extrai CPF do email e linka antes de buscar
+  // Verifica ownership pelo CPF do email (não pelo user_id que pode estar desatualizado)
   const emailCpf = user.email?.replace('@portal.local', '') ?? ''
   const cpfFormatted = emailCpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
-  if (emailCpf && /^\d{11}$/.test(emailCpf)) {
-    await db.from('consorciados').update({ user_id: user.id })
-      .eq('tenant_id', (tenant as { id: string }).id)
-      .in('cpf', [emailCpf, cpfFormatted])
-  }
 
   const { data: con } = await db
     .from('consorciados').select('*')
-    .eq('id', id).eq('user_id', user.id).eq('tenant_id', (tenant as { id: string }).id)
+    .eq('id', id)
+    .eq('tenant_id', (tenant as { id: string }).id)
+    .in('cpf', [emailCpf, cpfFormatted])
     .single()
 
-  if (!con) redirect(`/portal/${slug}`)
+  if (!con) redirect(`/portal/${slug}/entrar`)
 
   const c = con as {
     id: string; full_name: string; credit_value: number; asset_type: string | null
