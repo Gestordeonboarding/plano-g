@@ -56,30 +56,20 @@ export default function CadastrarPage() {
     setLoading(true)
     setError(null)
 
-    // 1. Activate (create Supabase auth user with temp credentials)
+    const cpfDigits = cpf.replace(/\D/g, '')
+
+    // 1. Activate: cria o usuário e define a senha via admin API (sem precisar de sessão temporária)
     const res = await fetch('/api/portal/activate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ cpf: cpf.replace(/\D/g, ''), slug }),
+      body: JSON.stringify({ cpf: cpfDigits, slug, pin: currentPin }),
     })
     const data = await res.json()
     if (!res.ok) { setError(data.error || 'Erro ao criar conta.'); setLoading(false); return }
 
-    // 2. Sign in with temp credentials
-    const supabase = createClient()
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email: data.email,
-      password: data.password,
-    })
-    if (signInError) { setError('Erro ao ativar conta. Tente novamente.'); setLoading(false); return }
-
-    // 3. Update password to user's chosen PIN
-    const { error: updateError } = await supabase.auth.updateUser({ password: pinRef.current })
-    if (updateError) { setError('Erro ao definir PIN.'); setLoading(false); return }
-
-    // 4. Save to localStorage for quick return
+    // 2. Salvar CPF no localStorage (o login acontece na tela de entrar com o PIN escolhido)
     const firstName = foundName.split(' ')[0]
-    localStorage.setItem(`portal_cpf_${slug}`, cpf.replace(/\D/g, ''))
+    localStorage.setItem(`portal_cpf_${slug}`, cpfDigits)
     localStorage.setItem(`portal_name_${slug}`, firstName)
 
     setStep('sucesso')
@@ -272,10 +262,10 @@ export default function CadastrarPage() {
                 Sua conta está ativa. Na próxima vez, é só informar seu PIN.
               </p>
             </div>
-            <button onClick={() => { window.location.href = `/portal/${slug}` }}
+            <button onClick={() => { window.location.href = `/portal/${slug}/entrar` }}
               className="py-4 px-8 rounded-2xl text-base font-bold transition-all active:scale-95 w-full"
               style={{ backgroundColor: 'var(--tenant-primary)', color: '#fff' }}>
-              Ver minha cota agora →
+              Entrar com meu PIN →
             </button>
           </div>
         )}

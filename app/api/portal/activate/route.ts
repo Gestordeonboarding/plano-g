@@ -99,6 +99,16 @@ export async function POST(request: Request) {
       }
     }
 
+    // Se um PIN foi fornecido, definir a senha final via admin (sem precisar de updateUser no cliente)
+    const pin = body.pin as string | undefined
+    if (pin && userId && pin.length === 6) {
+      const cpfDigits2 = (conData.cpf || '').replace(/\D/g, '') || conData.id.replace(/\D/g, '')
+      const derivedPassword = pin + cpfDigits2.slice(0, 4)
+      const { error: pinError } = await supabaseAdmin.auth.admin.updateUserById(userId, { password: derivedPassword })
+      if (pinError) return NextResponse.json({ error: 'Erro ao definir PIN: ' + pinError.message }, { status: 400 })
+      return NextResponse.json({ success: true, email, finalPassword: derivedPassword })
+    }
+
     return NextResponse.json({ success: true, email, password })
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 })
