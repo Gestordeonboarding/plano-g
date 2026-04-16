@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createAdmin } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
 import { formatDate } from '@/lib/utils'
 import { FileText, Download } from 'lucide-react'
@@ -13,21 +14,30 @@ const TYPE_LABEL: Record<string, string> = {
 
 export default async function DocumentosPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
-  const supabase = await createClient()
+  const authClient = await createClient()
+  const db = createAdmin(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect(`/portal/${slug}/login`)
+  const { data: { user } } = await authClient.auth.getUser()
+  if (!user) redirect(`/portal/${slug}/entrar`)
 
-  const { data: tenant } = await supabase.from('tenants').select('id').eq('slug', slug).single()
-  if (!tenant) redirect(`/portal/${slug}/login`)
+  const { data: tenant } = await db.from('tenants').select('id').eq('slug', slug).single()
+  if (!tenant) redirect(`/portal/${slug}/entrar`)
 
-  const { data: con } = await supabase
-    .from('consorciados').select('id').eq('user_id', user.id)
-    .eq('tenant_id', (tenant as { id: string }).id).single()
+  const emailCpf = user.email?.replace('@portal.local', '') ?? ''
+  const cpfFormatted = emailCpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
+
+  const { data: con } = await db
+    .from('consorciados').select('id')
+    .in('cpf', [emailCpf, cpfFormatted])
+    .eq('tenant_id', (tenant as { id: string }).id).limit(1).single()
 
   if (!con) redirect(`/portal/${slug}`)
 
-  const { data: docs } = await supabase
+  const { data: docs } = await db
     .from('documents')
     .select('*')
     .eq('consorciado_id', (con as { id: string }).id)

@@ -1,4 +1,5 @@
-import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/supabase/server'
+import { createClient as createAdmin } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
 import { formatDate, daysUntil } from '@/lib/utils'
 import SimuladorClient from './SimuladorClient'
@@ -7,7 +8,11 @@ import { Bell, Calendar, TrendingUp } from 'lucide-react'
 export default async function SimuladorPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
   const authClient = await createClient()
-  const db = await createServiceClient()
+  const db = createAdmin(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
 
   const { data: { user } } = await authClient.auth.getUser()
   if (!user) redirect(`/portal/${slug}/entrar`)
@@ -15,10 +20,13 @@ export default async function SimuladorPage({ params }: { params: Promise<{ slug
   const { data: tenant } = await db.from('tenants').select('id').eq('slug', slug).single()
   if (!tenant) redirect(`/portal/${slug}/entrar`)
 
+  const emailCpf = user.email?.replace('@portal.local', '') ?? ''
+  const cpfFormatted = emailCpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
+
   const { data: cons } = await db
     .from('consorciados')
     .select('id, credit_value, group_number, quota_number, installments_paid, monthly_installment, contemplation_score, next_assembly_date, asset_type, administrator')
-    .eq('user_id', user.id)
+    .in('cpf', [emailCpf, cpfFormatted])
     .eq('tenant_id', (tenant as { id: string }).id)
     .limit(1)
 
