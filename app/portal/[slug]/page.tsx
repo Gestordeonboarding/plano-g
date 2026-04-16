@@ -30,22 +30,25 @@ export default async function PortalHomePage({ params }: { params: Promise<{ slu
 
   const tenantId = (tenant as { id: string }).id
 
-  // Sempre garante o vínculo: extrai CPF do email (formato CPF@portal.local) e linka
-  const emailCpf = user.email?.replace('@portal.local', '')
-  if (emailCpf && /^\d{11}$/.test(emailCpf)) {
-    // Atualiza independente de já ter user_id ou não — garante consistência
-    await db.from('consorciados')
-      .update({ user_id: user.id })
-      .eq('tenant_id', tenantId)
-      .or(`cpf.eq.${emailCpf},cpf.eq.${emailCpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')}`)
+  // Extrai CPF do email de login (formato CPF@portal.local)
+  const emailCpf = user.email?.replace('@portal.local', '') ?? ''
+  const cpfFormatted = emailCpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
+
+  // Busca consórcios pelo CPF (trata ambos os formatos, com e sem pontuação)
+  const { data: cotasByCpf } = await db
+    .from('consorciados')
+    .select('id, full_name, credit_value, asset_type, status, administrator, installments_paid, total_installments, contemplation_score, seller_id, cpf')
+    .eq('tenant_id', tenantId)
+    .in('cpf', [emailCpf, cpfFormatted])
+    .order('credit_value', { ascending: false })
+
+  // Garante vínculo user_id para todas as cotas encontradas
+  if (cotasByCpf && cotasByCpf.length > 0) {
+    const ids = cotasByCpf.map((c) => (c as { id: string }).id)
+    await db.from('consorciados').update({ user_id: user.id }).in('id', ids)
   }
 
-  const { data: cotas } = await db
-    .from('consorciados')
-    .select('id, full_name, credit_value, asset_type, status, administrator, installments_paid, total_installments, contemplation_score, seller_id')
-    .eq('user_id', user.id)
-    .eq('tenant_id', tenantId)
-    .order('credit_value', { ascending: false })
+  const cotas = cotasByCpf
 
   if (!cotas || cotas.length === 0) redirect(`/portal/${slug}/entrar`)
 
