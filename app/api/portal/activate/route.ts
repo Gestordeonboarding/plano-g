@@ -131,11 +131,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Não foi possível localizar sua conta. Tente novamente.' }, { status: 400 })
     }
     if (pin && userId && pin.length === 6) {
-      const cpfDigits2 = (conData.cpf || '').replace(/\D/g, '') || conData.id.replace(/\D/g, '')
-      const derivedPassword = pin + cpfDigits2.slice(0, 4)
-      const { error: pinError } = await supabaseAdmin.auth.admin.updateUserById(userId, { password: derivedPassword })
+      const { error: pinError } = await supabaseAdmin.auth.admin.updateUserById(userId, { password: pin })
       if (pinError) return NextResponse.json({ error: 'Erro ao definir PIN: ' + pinError.message }, { status: 400 })
-      return NextResponse.json({ success: true, email, finalPassword: derivedPassword })
+      return NextResponse.json({ success: true, email })
     }
 
     return NextResponse.json({ success: true, email, password })
