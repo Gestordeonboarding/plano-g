@@ -59,19 +59,34 @@ export async function POST(request: Request) {
 
     if (authError) {
       if (authError.message.includes('already')) {
-        // Buscar pelo email na tabela users (mais confiável que listUsers com paginação)
+        // Tentativa 1: tabela users por email
         const { data: existingInUsers } = await supabaseAdmin
           .from('users').select('id').eq('email', email).single()
         if (existingInUsers) {
           userId = (existingInUsers as { id: string }).id
-        } else {
-          // Fallback: buscar pelo user_id já linkado no consorciado
+        }
+
+        // Tentativa 2: consorciado já linkado por CPF
+        if (!userId) {
           const cpfForSearch = (conData.cpf || '').replace(/\D/g, '')
-          const { data: conWithUser } = await supabaseAdmin
-            .from('consorciados').select('user_id').eq('cpf', cpfForSearch)
-            .not('user_id', 'is', null).limit(1)
-          const linked = (conWithUser as Array<{ user_id: string | null }> | null)?.[0]
-          userId = linked?.user_id || null
+          if (cpfForSearch) {
+            const { data: conWithUser } = await supabaseAdmin
+              .from('consorciados').select('user_id').eq('cpf', cpfForSearch)
+              .not('user_id', 'is', null).limit(1)
+            const linked = (conWithUser as Array<{ user_id: string | null }> | null)?.[0]
+            if (linked?.user_id) userId = linked.user_id
+          }
+        }
+
+        // Tentativa 3: listar auth users (fallback final)
+        if (!userId) {
+          const { data: listData } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 })
+          const found = listData?.users?.find((u) => u.email === email)
+          if (found) userId = found.id
+        }
+
+        if (!userId) {
+          return NextResponse.json({ error: 'Conta encontrada mas não foi possível localizá-la. Entre em contato com seu consultor.' }, { status: 400 })
         }
       } else {
         return NextResponse.json({ error: authError.message }, { status: 400 })
