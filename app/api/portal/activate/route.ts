@@ -43,9 +43,8 @@ export async function POST(request: Request) {
 
     const conData = con as { id: string; full_name: string; cpf: string | null; email: string | null; tenant_id: string }
     const cpfDigits = (conData.cpf || conData.id).replace(/\D/g, '')
-    const email = conData.email?.includes('@') && !conData.email.includes('@portal.local')
-      ? conData.email
-      : `${cpfDigits}@portal.local`
+    // Sempre usar CPF@portal.local — o entrar também usa essa fórmula
+    const email = `${cpfDigits}@portal.local`
     const password = cpfDigits.slice(-6) || '123456'
 
     // Criar ou buscar usuário auth
