@@ -194,8 +194,9 @@ export default function EntrarPage() {
     const { error: authError } = await supabase.auth.signInWithPassword({
       email: `${savedCpf}@portal.local`, password: currentPin,
     })
-    if (authError) { setError('PIN incorreto. Tente novamente.'); setPin(''); pinRef.current = ''; setLoading(false); return }
-    window.location.href = `/portal/${slug}`
+    if (authError) { setError(`Erro: ${authError.message}`); setPin(''); pinRef.current = ''; setLoading(false); return }
+    setError(`Login OK! Redirecionando...`)
+    setTimeout(() => { window.location.href = `/portal/${slug}` }, 1500)
   }
 
   function clearDevice() {
