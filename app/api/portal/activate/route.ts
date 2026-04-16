@@ -59,9 +59,20 @@ export async function POST(request: Request) {
 
     if (authError) {
       if (authError.message.includes('already')) {
-        const { data: list } = await supabaseAdmin.auth.admin.listUsers()
-        const existing = list?.users?.find((u) => u.email === email)
-        userId = existing?.id || null
+        // Buscar pelo email na tabela users (mais confiável que listUsers com paginação)
+        const { data: existingInUsers } = await supabaseAdmin
+          .from('users').select('id').eq('email', email).single()
+        if (existingInUsers) {
+          userId = (existingInUsers as { id: string }).id
+        } else {
+          // Fallback: buscar pelo user_id já linkado no consorciado
+          const cpfForSearch = (conData.cpf || '').replace(/\D/g, '')
+          const { data: conWithUser } = await supabaseAdmin
+            .from('consorciados').select('user_id').eq('cpf', cpfForSearch)
+            .not('user_id', 'is', null).limit(1)
+          const linked = (conWithUser as Array<{ user_id: string | null }> | null)?.[0]
+          userId = linked?.user_id || null
+        }
       } else {
         return NextResponse.json({ error: authError.message }, { status: 400 })
       }
@@ -101,6 +112,9 @@ export async function POST(request: Request) {
 
     // Se um PIN foi fornecido, definir a senha final via admin (sem precisar de updateUser no cliente)
     const pin = body.pin as string | undefined
+    if (pin && !userId) {
+      return NextResponse.json({ error: 'Não foi possível localizar sua conta. Tente novamente.' }, { status: 400 })
+    }
     if (pin && userId && pin.length === 6) {
       const cpfDigits2 = (conData.cpf || '').replace(/\D/g, '') || conData.id.replace(/\D/g, '')
       const derivedPassword = pin + cpfDigits2.slice(0, 4)
