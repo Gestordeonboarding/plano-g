@@ -108,19 +108,16 @@ export async function POST(request: Request) {
         })
       }
 
-      // Linka TODAS as cotas com o mesmo CPF no mesmo tenant ao mesmo user_id
+      // Linka TODAS as cotas: pelo id específico e também pelo CPF (com ou sem formatação)
       const cpfDigitsForLink = (conData.cpf || '').replace(/\D/g, '')
+      const cpfFormatted = cpfDigitsForLink.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
+      // Garante vínculo pelo ID direto
+      await supabaseAdmin.from('consorciados').update({ user_id: userId }).eq('id', conData.id)
+      // Também linka outras cotas com mesmo CPF (ambos os formatos)
       if (cpfDigitsForLink) {
-        await supabaseAdmin
-          .from('consorciados')
-          .update({ user_id: userId })
+        await supabaseAdmin.from('consorciados').update({ user_id: userId })
           .eq('tenant_id', conData.tenant_id)
-          .eq('cpf', cpfDigitsForLink)
-      } else {
-        await supabaseAdmin
-          .from('consorciados')
-          .update({ user_id: userId })
-          .eq('id', conData.id)
+          .or(`cpf.eq.${cpfDigitsForLink},cpf.eq.${cpfFormatted}`)
       }
     }
 
