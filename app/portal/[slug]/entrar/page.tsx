@@ -194,9 +194,10 @@ export default function EntrarPage() {
     const { error: authError } = await supabase.auth.signInWithPassword({
       email: `${savedCpf}@portal.local`, password: currentPin,
     })
-    if (authError) { setError(`Erro: ${authError.message}`); setPin(''); pinRef.current = ''; setLoading(false); return }
-    setError(`Login OK! Redirecionando...`)
-    setTimeout(() => { window.location.href = `/portal/${slug}` }, 1500)
+    if (authError) { setError('PIN incorreto. Tente novamente.'); setPin(''); pinRef.current = ''; setLoading(false); return }
+    // router.refresh() força o Next.js a reconhecer a nova sessão antes de navegar
+    router.refresh()
+    router.push(`/portal/${slug}`)
   }
 
   function clearDevice() {
