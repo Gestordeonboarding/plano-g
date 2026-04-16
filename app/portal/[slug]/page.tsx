@@ -28,12 +28,30 @@ export default async function PortalHomePage({ params }: { params: Promise<{ slu
   const { data: tenant } = await db.from('tenants').select('id, name').eq('slug', slug).single()
   if (!tenant) redirect(`/portal/${slug}/entrar`)
 
-  const { data: cotas } = await db
+  let { data: cotas } = await db
     .from('consorciados')
     .select('id, full_name, credit_value, asset_type, status, administrator, installments_paid, total_installments, contemplation_score, seller_id')
     .eq('user_id', user.id)
     .eq('tenant_id', (tenant as { id: string }).id)
     .order('credit_value', { ascending: false })
+
+  // Auto-link: se logado mas sem cotas, tenta linkar pelo CPF do email (CPF@portal.local)
+  if (!cotas || cotas.length === 0) {
+    const emailCpf = user.email?.replace('@portal.local', '')
+    if (emailCpf && /^\d{11}$/.test(emailCpf)) {
+      await db.from('consorciados')
+        .update({ user_id: user.id })
+        .eq('cpf', emailCpf)
+        .eq('tenant_id', (tenant as { id: string }).id)
+      const { data: relinked } = await db
+        .from('consorciados')
+        .select('id, full_name, credit_value, asset_type, status, administrator, installments_paid, total_installments, contemplation_score, seller_id')
+        .eq('user_id', user.id)
+        .eq('tenant_id', (tenant as { id: string }).id)
+        .order('credit_value', { ascending: false })
+      if (relinked) cotas = relinked
+    }
+  }
 
   if (!cotas || cotas.length === 0) redirect(`/portal/${slug}/entrar`)
 
