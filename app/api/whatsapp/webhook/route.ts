@@ -63,8 +63,33 @@ export async function POST(request: NextRequest) {
     // ── Connection state update ──────────────────────────────────────────────
     if (event === 'connection.update') {
       if (data?.state === 'open') {
-        // WhatsApp connected — phone number will come in a separate event
-        // If the remoteJid is available in future events, save it then
+        // Busca o número de telefone via Evolution API
+        try {
+          const evolutionUrl = process.env.EVOLUTION_API_URL
+          const evolutionKey = process.env.EVOLUTION_API_KEY
+          if (evolutionUrl && evolutionKey) {
+            const infoRes = await fetch(
+              `${evolutionUrl}/instance/fetchInstances?instanceName=${instanceName}`,
+              { headers: { apikey: evolutionKey } }
+            )
+            if (infoRes.ok) {
+              const infoData = await infoRes.json() as Array<{ owner?: string; profileName?: string }>
+              const instance = Array.isArray(infoData) ? infoData[0] : infoData
+              const owner = (instance as { owner?: string })?.owner
+              const profileName = (instance as { profileName?: string })?.profileName
+              const phone = owner?.replace('@s.whatsapp.net', '').replace(/\D/g, '') || null
+              await supabaseAdmin
+                .from('tenants')
+                .update({
+                  whatsapp_phone: phone,
+                  ...(profileName ? { whatsapp_name: profileName } : {}),
+                })
+                .eq('zapi_instance_id', instanceName)
+            }
+          }
+        } catch (e) {
+          console.error('Error fetching instance info:', e)
+        }
       }
       return NextResponse.json({ ok: true })
     }

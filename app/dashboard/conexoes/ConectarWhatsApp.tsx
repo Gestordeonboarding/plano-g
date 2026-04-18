@@ -38,10 +38,11 @@ export default function ConectarWhatsApp({
 
   useEffect(() => {
     if (step !== 'qr') return
+    // Poll rápido logo após escanear (a cada 2s)
     const interval = setInterval(async () => {
       const s = await checkStatus()
       if (s === 'connected') clearInterval(interval)
-    }, 3000)
+    }, 2000)
     return () => clearInterval(interval)
   }, [step, checkStatus])
 
@@ -104,12 +105,13 @@ export default function ConectarWhatsApp({
     <div className="flex flex-col gap-4">
       {/* Connected state */}
       {step === 'connected' && (
-        <div className="card-pg p-5">
-          <div className="flex items-center justify-between mb-4">
+        <div className="card-pg p-5 flex flex-col gap-4">
+          {/* Header conectado */}
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full flex items-center justify-center"
+              <div className="w-12 h-12 rounded-full flex items-center justify-center"
                 style={{ backgroundColor: 'rgba(37,211,102,0.15)' }}>
-                <Smartphone size={18} color="#25D366" />
+                <Smartphone size={22} color="#25D366" />
               </div>
               <div>
                 {editingName ? (
@@ -137,7 +139,9 @@ export default function ConectarWhatsApp({
                   </div>
                 )}
                 {phone && (
-                  <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>+{phone}</p>
+                  <p className="text-sm font-mono mt-0.5" style={{ color: '#25D366' }}>
+                    +{phone}
+                  </p>
                 )}
               </div>
             </div>
@@ -147,6 +151,8 @@ export default function ConectarWhatsApp({
               <span className="text-xs font-semibold" style={{ color: '#25D366' }}>Conectado</span>
             </div>
           </div>
+
+          {/* Info box */}
           <div className="flex items-center gap-2 text-xs p-3 rounded-lg"
             style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-muted)' }}>
             <CheckCircle size={13} style={{ color: 'var(--accent)' }} />
