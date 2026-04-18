@@ -32,19 +32,30 @@ export default function ConectarWhatsApp({
       setStep('connected')
       setPhone(data.phone)
       setQrcode(null)
+    } else if (data.status === 'disconnected' && step === 'connected') {
+      // Desconectou — volta para tela de reconectar
+      setStep('name')
+      setPhone(null)
     }
     return data.status
-  }, [])
+  }, [step])
 
+  // Poll rápido durante QR (2s), poll lento quando conectado (15s) para detectar desconexão
   useEffect(() => {
-    if (step !== 'qr') return
-    // Poll rápido logo após escanear (a cada 2s)
+    if (step !== 'qr' && step !== 'connected') return
     const interval = setInterval(async () => {
       const s = await checkStatus()
       if (s === 'connected') clearInterval(interval)
-    }, 2000)
+    }, step === 'qr' ? 2000 : 15000)
     return () => clearInterval(interval)
   }, [step, checkStatus])
+
+  // Ao montar, verifica se já está conectado (para recuperar estado após navegar)
+  useEffect(() => {
+    if (step !== 'name') return
+    checkStatus()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     if (step !== 'qr') return

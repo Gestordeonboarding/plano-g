@@ -32,7 +32,17 @@ export async function POST(request: NextRequest) {
     const t = tenant as { zapi_instance_id: string | null; name: string } | null
 
     if (t?.zapi_instance_id) {
-      // Instance already exists — return it
+      // Instância já existe — atualiza o webhook para garantir que está correto
+      await fetch(`${EVOLUTION_URL}/webhook/set/${t.zapi_instance_id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': EVOLUTION_KEY },
+        body: JSON.stringify({
+          url: WEBHOOK_URL,
+          byEvents: false,
+          base64: false,
+          events: ['MESSAGES_UPSERT', 'CONNECTION_UPDATE'],
+        }),
+      })
       return NextResponse.json({ instanceName: t.zapi_instance_id })
     }
 

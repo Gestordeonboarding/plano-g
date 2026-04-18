@@ -33,20 +33,43 @@ export async function GET() {
       return NextResponse.json({ status: 'not_configured', phone: null })
     }
 
-    // Evolution API: GET /instance/connectionState/{instanceName}
-    // Returns { instance: { instanceName: "...", state: "open" | "close" | "connecting" } }
+    // Verifica estado no Evolution API
     const res = await fetch(`${EVOLUTION_URL}/instance/connectionState/${t.zapi_instance_id}`, {
       headers: { 'apikey': EVOLUTION_KEY },
     })
 
-    if (!res.ok) return NextResponse.json({ status: 'disconnected', phone: null })
+    if (!res.ok) return NextResponse.json({ status: 'disconnected', phone: t.whatsapp_phone })
 
     const data = await res.json() as { instance?: { state?: string } }
     const state = data.instance?.state
+    const connected = state === 'open'
+
+    // Se conectado mas sem telefone salvo, busca agora
+    if (connected && !t.whatsapp_phone) {
+      try {
+        const infoRes = await fetch(
+          `${EVOLUTION_URL}/instance/fetchInstances?instanceName=${t.zapi_instance_id}`,
+          { headers: { 'apikey': EVOLUTION_KEY } }
+        )
+        if (infoRes.ok) {
+          const infoData = await infoRes.json() as Array<{ owner?: string; profileName?: string }>
+          const instance = Array.isArray(infoData) ? infoData[0] : infoData
+          const owner = (instance as { owner?: string })?.owner
+          const phone = owner?.replace('@s.whatsapp.net', '').replace(/\D/g, '') || null
+          if (phone) {
+            await supabaseAdmin
+              .from('tenants')
+              .update({ whatsapp_phone: phone })
+              .eq('id', tenantId)
+            return NextResponse.json({ status: 'connected', phone })
+          }
+        }
+      } catch { /* ignora erro */ }
+    }
 
     return NextResponse.json({
-      status: state === 'open' ? 'connected' : 'disconnected',
-      phone: state === 'open' ? t.whatsapp_phone : null,
+      status: connected ? 'connected' : 'disconnected',
+      phone: connected ? t.whatsapp_phone : null,
     })
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 })
