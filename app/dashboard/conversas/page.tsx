@@ -10,17 +10,6 @@ const supabaseAdmin = createAdmin(
   { auth: { autoRefreshToken: false, persistSession: false } }
 )
 
-type Conversation = {
-  id: string
-  contact_phone: string
-  contact_name: string | null
-  last_message: string | null
-  last_message_at: string
-  unread_count: number
-  lead_id: string | null
-  seller_id?: string | null
-}
-
 export default async function ConversasPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -35,21 +24,29 @@ export default async function ConversasPage() {
     .eq('id', user!.id)
     .single()
 
-  const role = (userData as { role: string } | null)?.role || 'seller'
+  const role = (userData as { role: string } | null)?.role ?? 'seller'
   const isSeller = role === 'seller'
+  const userId = user!.id
 
-  const { data } = await supabaseAdmin
+  const { data: raw } = await supabaseAdmin
     .from('whatsapp_conversations')
     .select('*')
     .eq('tenant_id', tenantId)
     .order('last_message_at', { ascending: false })
 
-  const all = (data || []) as Conversation[]
+  const rows = (raw ?? []) as Array<Record<string, unknown>>
 
-  // Sellers veem apenas as suas; admins veem todas
-  const conversations = isSeller
-    ? all.filter((c) => !c.seller_id || c.seller_id === user!.id)
-    : all
+  const conversations = rows
+    .filter((c) => !isSeller || !c.seller_id || c.seller_id === userId)
+    .map((c) => ({
+      id: c.id as string,
+      contact_phone: c.contact_phone as string,
+      contact_name: (c.contact_name ?? null) as string | null,
+      last_message: (c.last_message ?? null) as string | null,
+      last_message_at: c.last_message_at as string,
+      unread_count: (c.unread_count as number) ?? 0,
+      lead_id: (c.lead_id ?? null) as string | null,
+    }))
 
   return <ConversasClient conversations={conversations} />
 }
