@@ -52,9 +52,12 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify({
         instanceName,
         integration: 'WHATSAPP-BAILEYS',
-        webhook: WEBHOOK_URL,
-        webhookByEvents: false,
-        events: ['MESSAGES_UPSERT', 'CONNECTION_UPDATE'],
+        webhook: {
+          url: WEBHOOK_URL,
+          byEvents: false,
+          base64: false,
+          events: ['MESSAGES_UPSERT', 'CONNECTION_UPDATE'],
+        },
       }),
     })
 
