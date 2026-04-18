@@ -29,13 +29,18 @@ export default async function ConversasPage() {
   const isSeller = role === 'seller'
 
   // Sellers veem apenas suas próprias conversas; admins veem todas do tenant
-  const baseQuery = supabaseAdmin
-    .from('whatsapp_conversations')
-    .select('id, contact_phone, contact_name, last_message, last_message_at, unread_count, lead_id')
-    .eq('tenant_id', tenantId)
-    .order('last_message_at', { ascending: false })
-
-  const { data } = await (isSeller ? baseQuery.eq('seller_id', user.id) : baseQuery)
+  const { data } = isSeller
+    ? await supabaseAdmin
+        .from('whatsapp_conversations')
+        .select('id, contact_phone, contact_name, last_message, last_message_at, unread_count, lead_id')
+        .eq('tenant_id', tenantId)
+        .eq('seller_id', user.id)
+        .order('last_message_at', { ascending: false })
+    : await supabaseAdmin
+        .from('whatsapp_conversations')
+        .select('id, contact_phone, contact_name, last_message, last_message_at, unread_count, lead_id')
+        .eq('tenant_id', tenantId)
+        .order('last_message_at', { ascending: false })
 
   const conversations = (data || []) as Array<{
     id: string
