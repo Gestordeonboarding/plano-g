@@ -51,6 +51,7 @@ export async function POST(request: NextRequest) {
       },
       body: JSON.stringify({
         instanceName,
+        integration: 'WHATSAPP-BAILEYS',
         webhook: WEBHOOK_URL,
         webhookByEvents: false,
         events: ['MESSAGES_UPSERT', 'CONNECTION_UPDATE'],
@@ -59,8 +60,8 @@ export async function POST(request: NextRequest) {
 
     if (!createRes.ok) {
       const err = await createRes.text()
-      console.error('Evolution create instance error:', err)
-      return NextResponse.json({ error: 'Não foi possível criar a conexão. Tente novamente.' }, { status: 502 })
+      console.error('Evolution create instance error:', createRes.status, err)
+      return NextResponse.json({ error: `Erro ao criar conexão (${createRes.status}): ${err}` }, { status: 502 })
     }
 
     // Save instance name to tenant
