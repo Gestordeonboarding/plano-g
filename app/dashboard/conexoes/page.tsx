@@ -52,7 +52,7 @@ export default async function ConexoesPage() {
       />
 
       {/* Shortcut to conversations */}
-      {t?.whatsapp_phone && (
+      {u?.whatsapp_phone && (
         <Link
           href="/dashboard/conversas"
           className="card-pg p-4 flex items-center justify-between transition-all"
