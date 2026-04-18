@@ -8,33 +8,28 @@ const supabaseAdmin = createAdmin(
 )
 
 // Evolution API webhook payload types
+type EvolutionMessage = {
+  conversation?: string
+  extendedTextMessage?: { text?: string }
+  imageMessage?: { caption?: string }
+  videoMessage?: { caption?: string }
+  documentMessage?: { title?: string }
+  audioMessage?: Record<string, unknown>
+}
+
 type EvolutionPayload = {
   event: string
   instance: string
   data?: {
-    // messages.upsert
-    key?: {
-      remoteJid?: string
-      fromMe?: boolean
-      id?: string
-    }
+    key?: { remoteJid?: string; fromMe?: boolean; id?: string }
     pushName?: string
-    message?: {
-      conversation?: string
-      extendedTextMessage?: { text?: string }
-      imageMessage?: { caption?: string }
-      videoMessage?: { caption?: string }
-      documentMessage?: { title?: string }
-      audioMessage?: Record<string, unknown>
-    }
-    // connection.update
+    message?: EvolutionMessage
     state?: string
-    // qrcode.updated
     qrcode?: { base64?: string; code?: string }
   }
 }
 
-function extractMessage(message?: EvolutionPayload['data']['message']): string {
+function extractMessage(message?: EvolutionMessage): string {
   if (!message) return ''
   return (
     message.conversation ||
