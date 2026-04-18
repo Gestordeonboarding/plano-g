@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdmin } from '@supabase/supabase-js'
-import { getViewingTenantId } from '@/lib/supabase/get-tenant'
 
 const supabaseAdmin = createAdmin(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -18,22 +17,19 @@ export async function GET() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
-    const tenantId = await getViewingTenantId()
-    if (!tenantId) return NextResponse.json({ error: 'Tenant não encontrado' }, { status: 400 })
-
-    const { data: tenantData } = await supabaseAdmin
-      .from('tenants')
+    // Busca instância do usuário logado
+    const { data: userData } = await supabaseAdmin
+      .from('users')
       .select('zapi_instance_id')
-      .eq('id', tenantId)
+      .eq('id', user.id)
       .single()
 
-    const instanceName = (tenantData as { zapi_instance_id: string | null } | null)?.zapi_instance_id
+    const instanceName = (userData as { zapi_instance_id: string | null } | null)?.zapi_instance_id
     if (!instanceName) {
       return NextResponse.json({ error: 'Instância não configurada.' }, { status: 422 })
     }
 
     // Evolution API: GET /instance/connect/{instanceName}
-    // Returns { base64: "data:image/png;base64,...", code: "..." }
     const res = await fetch(`${EVOLUTION_URL}/instance/connect/${instanceName}`, {
       headers: { 'apikey': EVOLUTION_KEY },
     })

@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdmin } from '@supabase/supabase-js'
-import { getViewingTenantId } from '@/lib/supabase/get-tenant'
 
 const supabaseAdmin = createAdmin(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -18,37 +17,35 @@ export async function GET() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ status: 'disconnected', phone: null })
 
-    const tenantId = await getViewingTenantId()
-    if (!tenantId) return NextResponse.json({ status: 'disconnected', phone: null })
-
-    const { data: tenantData } = await supabaseAdmin
-      .from('tenants')
+    // Busca instância do usuário logado
+    const { data: userData } = await supabaseAdmin
+      .from('users')
       .select('zapi_instance_id, whatsapp_phone')
-      .eq('id', tenantId)
+      .eq('id', user.id)
       .single()
 
-    const t = tenantData as { zapi_instance_id: string | null; whatsapp_phone: string | null } | null
+    const u = userData as { zapi_instance_id: string | null; whatsapp_phone: string | null } | null
 
-    if (!t?.zapi_instance_id) {
+    if (!u?.zapi_instance_id) {
       return NextResponse.json({ status: 'not_configured', phone: null })
     }
 
     // Verifica estado no Evolution API
-    const res = await fetch(`${EVOLUTION_URL}/instance/connectionState/${t.zapi_instance_id}`, {
+    const res = await fetch(`${EVOLUTION_URL}/instance/connectionState/${u.zapi_instance_id}`, {
       headers: { 'apikey': EVOLUTION_KEY },
     })
 
-    if (!res.ok) return NextResponse.json({ status: 'disconnected', phone: t.whatsapp_phone })
+    if (!res.ok) return NextResponse.json({ status: 'disconnected', phone: u.whatsapp_phone })
 
     const data = await res.json() as { instance?: { state?: string } }
     const state = data.instance?.state
     const connected = state === 'open'
 
     // Se conectado mas sem telefone salvo, busca agora
-    if (connected && !t.whatsapp_phone) {
+    if (connected && !u.whatsapp_phone) {
       try {
         const infoRes = await fetch(
-          `${EVOLUTION_URL}/instance/fetchInstances?instanceName=${t.zapi_instance_id}`,
+          `${EVOLUTION_URL}/instance/fetchInstances?instanceName=${u.zapi_instance_id}`,
           { headers: { 'apikey': EVOLUTION_KEY } }
         )
         if (infoRes.ok) {
@@ -58,18 +55,18 @@ export async function GET() {
           const phone = owner?.replace('@s.whatsapp.net', '').replace(/\D/g, '') || null
           if (phone) {
             await supabaseAdmin
-              .from('tenants')
+              .from('users')
               .update({ whatsapp_phone: phone })
-              .eq('id', tenantId)
+              .eq('id', user.id)
             return NextResponse.json({ status: 'connected', phone })
           }
         }
-      } catch { /* ignora erro */ }
+      } catch { /* ignora */ }
     }
 
     return NextResponse.json({
       status: connected ? 'connected' : 'disconnected',
-      phone: connected ? t.whatsapp_phone : null,
+      phone: connected ? u.whatsapp_phone : null,
     })
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 })

@@ -18,11 +18,28 @@ export default async function ConversasPage() {
   const tenantId = await getViewingTenantId()
   if (!tenantId) redirect('/login')
 
-  const { data } = await supabaseAdmin
+  // Busca role do usuário
+  const { data: userData } = await supabaseAdmin
+    .from('users')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  const role = (userData as { role: string } | null)?.role || 'seller'
+  const isSeller = role === 'seller'
+
+  // Sellers veem apenas suas próprias conversas; admins veem todas do tenant
+  let query = supabaseAdmin
     .from('whatsapp_conversations')
     .select('id, contact_phone, contact_name, last_message, last_message_at, unread_count, lead_id')
     .eq('tenant_id', tenantId)
     .order('last_message_at', { ascending: false })
+
+  if (isSeller) {
+    query = query.eq('seller_id', user.id)
+  }
+
+  const { data } = await query
 
   const conversations = (data || []) as Array<{
     id: string

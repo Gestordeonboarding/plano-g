@@ -20,15 +20,15 @@ export default async function ConexoesPage() {
   const tenantId = await getViewingTenantId()
   if (!tenantId) redirect('/login')
 
-  const { data: tenant } = await supabaseAdmin
-    .from('tenants')
-    .select('zapi_instance_id, zapi_token, whatsapp_phone, whatsapp_name')
-    .eq('id', tenantId)
+  // Busca dados do usuário logado (instância por usuário)
+  const { data: currentUser } = await supabaseAdmin
+    .from('users')
+    .select('zapi_instance_id, whatsapp_phone, whatsapp_name')
+    .eq('id', user.id)
     .single()
 
-  const t = tenant as {
+  const u = currentUser as {
     zapi_instance_id: string | null
-    zapi_token: string | null
     whatsapp_phone: string | null
     whatsapp_name: string | null
   } | null
@@ -44,12 +44,11 @@ export default async function ConexoesPage() {
         </p>
       </div>
 
-      {/* Always show the connect component — instance is created automatically on first connect */}
       <ConectarWhatsApp
-        initialPhone={t?.whatsapp_phone || null}
-        initialName={t?.whatsapp_name || null}
+        initialPhone={u?.whatsapp_phone || null}
+        initialName={u?.whatsapp_name || null}
         tenantId={tenantId}
-        hasInstance={!!t?.zapi_instance_id}
+        hasInstance={!!u?.zapi_instance_id}
       />
 
       {/* Shortcut to conversations */}

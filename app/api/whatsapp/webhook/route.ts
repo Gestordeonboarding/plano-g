@@ -49,16 +49,31 @@ export async function POST(request: NextRequest) {
 
     if (!instanceName) return NextResponse.json({ ok: true })
 
-    // Find tenant by instance name (stored in zapi_instance_id column)
-    const { data: tenantData } = await supabaseAdmin
-      .from('tenants')
-      .select('id')
+    // Identifica dono da instância — primeiro busca por usuário, depois por tenant (legado)
+    let tenantId: string | null = null
+    let userId: string | null = null
+
+    const { data: userData } = await supabaseAdmin
+      .from('users')
+      .select('id, tenant_id')
       .eq('zapi_instance_id', instanceName)
       .single()
 
-    if (!tenantData) return NextResponse.json({ ok: true })
+    if (userData) {
+      const u = userData as { id: string; tenant_id: string }
+      tenantId = u.tenant_id
+      userId = u.id
+    } else {
+      // Fallback: tenant-level (legado)
+      const { data: tenantData } = await supabaseAdmin
+        .from('tenants')
+        .select('id')
+        .eq('zapi_instance_id', instanceName)
+        .single()
+      if (tenantData) tenantId = (tenantData as { id: string }).id
+    }
 
-    const tenantId = (tenantData as { id: string }).id
+    if (!tenantId) return NextResponse.json({ ok: true })
 
     // ── Connection state update ──────────────────────────────────────────────
     if (event === 'connection.update') {
@@ -161,6 +176,7 @@ export async function POST(request: NextRequest) {
           .from('whatsapp_conversations')
           .insert({
             tenant_id: tenantId,
+            ...(userId ? { seller_id: userId } : {}),
             contact_phone: phone,
             contact_name: contactName,
             lead_id: leadId,

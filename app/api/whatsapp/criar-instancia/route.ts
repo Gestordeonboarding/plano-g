@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdmin } from '@supabase/supabase-js'
-import { getViewingTenantId } from '@/lib/supabase/get-tenant'
 
 const supabaseAdmin = createAdmin(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -19,21 +18,25 @@ export async function POST(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
 
-    const tenantId = await getViewingTenantId()
-    if (!tenantId) return NextResponse.json({ error: 'Tenant não encontrado' }, { status: 400 })
-
-    // Check if already has instance
-    const { data: tenant } = await supabaseAdmin
-      .from('tenants')
-      .select('zapi_instance_id, name')
-      .eq('id', tenantId)
+    // Busca dados do usuário logado
+    const { data: userData } = await supabaseAdmin
+      .from('users')
+      .select('id, zapi_instance_id, tenant_id')
+      .eq('id', user.id)
       .single()
 
-    const t = tenant as { zapi_instance_id: string | null; name: string } | null
+    const u = userData as { id: string; zapi_instance_id: string | null; tenant_id: string } | null
+    if (!u) return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 400 })
 
-    if (t?.zapi_instance_id) {
-      // Instância já existe — atualiza o webhook para garantir que está correto
-      await fetch(`${EVOLUTION_URL}/webhook/set/${t.zapi_instance_id}`, {
+    if (!EVOLUTION_URL || !EVOLUTION_KEY) {
+      return NextResponse.json({ error: 'Configuração do servidor incompleta. Entre em contato com o suporte.' }, { status: 500 })
+    }
+
+    const instanceName = `planog-user-${u.id.slice(0, 8)}`
+
+    if (u.zapi_instance_id) {
+      // Instância já existe — atualiza webhook para garantir URL correta
+      await fetch(`${EVOLUTION_URL}/webhook/set/${u.zapi_instance_id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'apikey': EVOLUTION_KEY },
         body: JSON.stringify({
@@ -43,16 +46,10 @@ export async function POST(request: NextRequest) {
           events: ['MESSAGES_UPSERT', 'CONNECTION_UPDATE'],
         }),
       })
-      return NextResponse.json({ instanceName: t.zapi_instance_id })
+      return NextResponse.json({ instanceName: u.zapi_instance_id })
     }
 
-    if (!EVOLUTION_URL || !EVOLUTION_KEY) {
-      return NextResponse.json({ error: 'Configuração do servidor incompleta. Entre em contato com o suporte.' }, { status: 500 })
-    }
-
-    const instanceName = `planog-${tenantId.slice(0, 8)}`
-
-    // Create instance in Evolution API
+    // Cria nova instância no Evolution API
     const createRes = await fetch(`${EVOLUTION_URL}/instance/create`, {
       method: 'POST',
       headers: {
@@ -77,11 +74,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: `Erro ao criar conexão (${createRes.status}): ${err}` }, { status: 502 })
     }
 
-    // Save instance name to tenant
+    // Salva nome da instância no usuário
     await supabaseAdmin
-      .from('tenants')
-      .update({ zapi_instance_id: instanceName, zapi_token: null })
-      .eq('id', tenantId)
+      .from('users')
+      .update({ zapi_instance_id: instanceName })
+      .eq('id', u.id)
 
     return NextResponse.json({ instanceName })
   } catch (err) {
