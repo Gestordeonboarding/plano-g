@@ -18,6 +18,7 @@ type Conversation = {
   last_message_at: string
   unread_count: number
   lead_id: string | null
+  seller_id?: string | null
 }
 
 export default async function ConversasPage() {
@@ -37,24 +38,18 @@ export default async function ConversasPage() {
   const role = (userData as { role: string } | null)?.role || 'seller'
   const isSeller = role === 'seller'
 
-  let conversations: Conversation[] = []
+  const { data } = await supabaseAdmin
+    .from('whatsapp_conversations')
+    .select('*')
+    .eq('tenant_id', tenantId)
+    .order('last_message_at', { ascending: false })
 
-  if (isSeller) {
-    const { data } = await supabaseAdmin
-      .from('whatsapp_conversations')
-      .select('id, contact_phone, contact_name, last_message, last_message_at, unread_count, lead_id')
-      .eq('tenant_id', tenantId)
-      .eq('seller_id', user!.id)
-      .order('last_message_at', { ascending: false })
-    conversations = (data || []) as Conversation[]
-  } else {
-    const { data } = await supabaseAdmin
-      .from('whatsapp_conversations')
-      .select('id, contact_phone, contact_name, last_message, last_message_at, unread_count, lead_id')
-      .eq('tenant_id', tenantId)
-      .order('last_message_at', { ascending: false })
-    conversations = (data || []) as Conversation[]
-  }
+  const all = (data || []) as Conversation[]
+
+  // Sellers veem apenas as suas; admins veem todas
+  const conversations = isSeller
+    ? all.filter((c) => !c.seller_id || c.seller_id === user!.id)
+    : all
 
   return <ConversasClient conversations={conversations} />
 }
