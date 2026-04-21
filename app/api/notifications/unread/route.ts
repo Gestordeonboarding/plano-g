@@ -17,11 +17,11 @@ export async function GET(request: NextRequest) {
     const since = request.nextUrl.searchParams.get('since')
     if (!since) return NextResponse.json({ notifications: [] })
 
+    // Filtra só por seller_id e created_at — sem filtro de read para não perder nada
     const { data } = await admin
       .from('seller_notifications')
       .select('id, title, body, type, data, created_at')
       .eq('seller_id', user.id)
-      .eq('read', false)
       .gt('created_at', since)
       .order('created_at', { ascending: false })
       .limit(10)

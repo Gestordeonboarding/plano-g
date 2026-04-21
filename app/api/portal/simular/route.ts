@@ -16,16 +16,24 @@ export async function POST(request: Request) {
 
     const { consorciado_id, lance_value, credit_value, lance_percent, probability, slug } = await request.json()
 
+    // Busca o consorciado pelo ID — a sessão do portal já garante que o usuário está autenticado
     const { data: con } = await admin
       .from('consorciados')
-      .select('id, full_name, seller_id, tenant_id')
+      .select('id, full_name, seller_id, tenant_id, user_id')
       .eq('id', consorciado_id)
-      .eq('user_id', user.id)
       .single()
 
-    if (!con) return NextResponse.json({ error: 'Não autorizado' }, { status: 403 })
+    if (!con) return NextResponse.json({ error: 'Consorciado não encontrado' }, { status: 404 })
 
-    const c = con as { id: string; full_name: string; seller_id: string | null; tenant_id: string }
+    const c = con as { id: string; full_name: string; seller_id: string | null; tenant_id: string; user_id: string | null }
+
+    // Garante que o user logado pertence a esse consorciado (ou linka se estiver solto)
+    if (c.user_id && c.user_id !== user.id) {
+      return NextResponse.json({ error: 'Não autorizado' }, { status: 403 })
+    }
+    if (!c.user_id) {
+      await admin.from('consorciados').update({ user_id: user.id }).eq('id', c.id)
+    }
 
     // Salvar simulação
     await admin.from('lance_simulations').insert({
@@ -43,8 +51,8 @@ export async function POST(request: Request) {
     const lanceFormatted = Number(lance_value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })
     const notifData = { consorciado_id: c.id, lance_value, lance_percent, probability, slug }
 
-    // Busca nome do vendedor (para exibir ao gerente)
-    let sellerName = 'Vendedor'
+    // Busca nome do vendedor
+    let sellerName = 'Sem vendedor atribuído'
     if (c.seller_id) {
       const { data: sd } = await admin.from('users').select('full_name, email').eq('id', c.seller_id).single()
       if (sd) {
@@ -53,42 +61,49 @@ export async function POST(request: Request) {
       }
     }
 
-    // Notificar vendedor
+    // Busca todos os usuários do tenant para notificar
+    const { data: allUsers } = await admin
+      .from('users')
+      .select('id, role')
+      .eq('tenant_id', c.tenant_id)
+
+    const users = (allUsers || []) as Array<{ id: string; role: string }>
+    const sellers = users.filter((u) => u.role === 'seller')
+    const managers = users.filter((u) => u.role !== 'seller')
+
+    const toNotify: Array<{ id: string; isManager: boolean }> = []
+
     if (c.seller_id) {
-      await admin.from('seller_notifications').insert({
-        seller_id: c.seller_id,
-        tenant_id: c.tenant_id,
-        type: 'simulation',
-        title: `${firstName} simulou um lance`,
-        body: `${c.full_name} simulou um lance de R$ ${lanceFormatted} (${lance_percent.toFixed(1)}%)${probText}.`,
-        data: notifData,
-      })
+      // Tem vendedor atribuído: notifica só ele + gerentes
+      toNotify.push({ id: c.seller_id, isManager: false })
+      managers.forEach((m) => toNotify.push({ id: m.id, isManager: true }))
+    } else {
+      // Sem vendedor: notifica todos os vendedores + gerentes
+      sellers.forEach((s) => toNotify.push({ id: s.id, isManager: false }))
+      managers.forEach((m) => toNotify.push({ id: m.id, isManager: true }))
     }
 
-    // Notificar gerentes do mesmo tenant
-    const { data: managers } = await admin
-      .from('users')
-      .select('id')
-      .eq('tenant_id', c.tenant_id)
-      .neq('role', 'seller')
+    const inserts = toNotify.map(({ id, isManager }) => ({
+      seller_id: id,
+      tenant_id: c.tenant_id,
+      type: 'simulation',
+      title: `${firstName} simulou um lance`,
+      body: isManager
+        ? `${c.full_name} simulou R$ ${lanceFormatted} (${lance_percent.toFixed(1)}%)${probText}. Vendedor: ${sellerName}.`
+        : `${c.full_name} simulou um lance de R$ ${lanceFormatted} (${lance_percent.toFixed(1)}%)${probText}.`,
+      data: isManager
+        ? { ...notifData, seller_name: sellerName, for_manager: true }
+        : notifData,
+      read: false,
+    }))
 
-    const managerInserts = (managers || [])
-      .filter((m: { id: string }) => m.id !== c.seller_id)
-      .map((m: { id: string }) => ({
-        seller_id: m.id,
-        tenant_id: c.tenant_id,
-        type: 'simulation',
-        title: `${firstName} simulou um lance`,
-        body: `${c.full_name} simulou R$ ${lanceFormatted} (${lance_percent.toFixed(1)}%)${probText}. Vendedor: ${sellerName}.`,
-        data: { ...notifData, seller_name: sellerName, for_manager: true },
-      }))
-
-    if (managerInserts.length > 0) {
-      await admin.from('seller_notifications').insert(managerInserts)
+    if (inserts.length > 0) {
+      await admin.from('seller_notifications').insert(inserts)
     }
 
     return NextResponse.json({ success: true })
   } catch (err) {
+    console.error('simular error:', err)
     return NextResponse.json({ error: String(err) }, { status: 500 })
   }
 }
