@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import DashboardSidebar from '@/components/dashboard/Sidebar'
+import RealtimeToast from '@/components/dashboard/RealtimeToast'
 import { daysSince } from '@/lib/utils'
 import Link from 'next/link'
 import { AlertTriangle, ArrowLeft } from 'lucide-react'
@@ -110,6 +111,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
         <main className="flex-1 p-6">{children}</main>
       </div>
+
+      <RealtimeToast userId={user.id} />
     </div>
   )
 }
