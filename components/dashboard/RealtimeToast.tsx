@@ -1,7 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { TrendingUp, X, Phone } from 'lucide-react'
 
 type Toast = {
@@ -19,8 +18,7 @@ function playSound() {
   try {
     const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
     const now = ctx.currentTime
-
-    const notes = [523.25, 659.25, 783.99] // C5 E5 G5
+    const notes = [523.25, 659.25, 783.99]
     notes.forEach((freq, i) => {
       const osc = ctx.createOscillator()
       const gain = ctx.createGain()
@@ -34,7 +32,7 @@ function playSound() {
       osc.start(now + i * 0.12)
       osc.stop(now + i * 0.12 + 0.36)
     })
-  } catch { /* ignora se bloqueado pelo browser */ }
+  } catch { /* bloqueado pelo browser */ }
 }
 
 function ToastCard({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string) => void }) {
@@ -55,20 +53,17 @@ function ToastCard({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string)
       width: 340,
       borderRadius: 16,
       overflow: 'hidden',
-      boxShadow: '0 8px 32px rgba(0,0,0,0.4), 0 0 0 1px rgba(0,212,200,0.3)',
+      boxShadow: '0 8px 32px rgba(0,0,0,0.45), 0 0 0 1px rgba(0,212,200,0.25)',
       background: 'var(--bg-secondary)',
-      animation: 'toastSlideIn 0.45s cubic-bezier(0.22,1,0.36,1) both',
+      animation: 'toastIn 0.45s cubic-bezier(0.22,1,0.36,1) both',
     }}>
-      {/* Barra de progresso */}
-      <div style={{ height: 3, background: `linear-gradient(90deg, ${probColor}, ${probColor}88)`, animation: 'toastProgress 8s linear forwards' }} />
+      <div style={{ height: 3, background: `linear-gradient(90deg, ${probColor}, ${probColor}66)`, animation: 'toastBar 8s linear forwards' }} />
 
       <div style={{ padding: '14px 14px 14px 16px' }}>
-        {/* Header */}
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 10 }}>
           <div style={{
             width: 38, height: 38, borderRadius: 10, flexShrink: 0,
-            background: `${probColor}18`,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: `${probColor}18`, display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
             <TrendingUp size={18} color={probColor} />
           </div>
@@ -84,52 +79,37 @@ function ToastCard({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string)
             )}
           </div>
 
-          <button
-            onClick={() => onDismiss(toast.id)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, flexShrink: 0 }}
-          >
+          <button onClick={() => onDismiss(toast.id)}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, flexShrink: 0 }}>
             <X size={14} color="var(--text-muted)" />
           </button>
         </div>
 
-        {/* Detalhes da simulação */}
-        <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
           {toast.lance_percent !== null && (
-            <span style={{
-              fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20,
-              background: `${probColor}15`, color: probColor,
-            }}>
+            <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: `${probColor}15`, color: probColor }}>
               {toast.lance_percent.toFixed(1)}% do crédito
             </span>
           )}
           {toast.lance_value !== null && (
-            <span style={{
-              fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20,
-              background: 'var(--bg-tertiary)', color: 'var(--text-secondary)',
-            }}>
+            <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: 'var(--bg-tertiary)', color: 'var(--text-secondary)' }}>
               R$ {Number(toast.lance_value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
             </span>
           )}
           {prob !== null && (
-            <span style={{
-              fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20,
-              background: `${probColor}15`, color: probColor,
-            }}>
-              {prob}% chance
+            <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: `${probColor}15`, color: probColor }}>
+              {prob}% de chance
             </span>
           )}
         </div>
 
-        {/* CTA */}
         <div style={{
           borderRadius: 10, padding: '10px 12px',
           background: 'var(--bg-tertiary)',
           display: 'flex', alignItems: 'center', gap: 8,
         }}>
           <Phone size={13} color={probColor} style={{ flexShrink: 0 }} />
-          <p style={{ fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.45 }}>
-            {cta}
-          </p>
+          <p style={{ fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.45 }}>{cta}</p>
         </div>
       </div>
     </div>
@@ -138,51 +118,53 @@ function ToastCard({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string)
 
 export default function RealtimeToast({ userId }: { userId: string }) {
   const [toasts, setToasts] = useState<Toast[]>([])
+  const lastCheck = useRef(new Date().toISOString())
+  const seenIds = useRef<Set<string>>(new Set())
 
   const dismiss = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id))
   }, [])
 
   useEffect(() => {
-    const supabase = createClient()
+    if (!userId) return
 
-    const channel = supabase
-      .channel(`notif-${userId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'seller_notifications',
-          filter: `seller_id=eq.${userId}`,
-        },
-        (payload) => {
-          const n = payload.new as {
-            id: string; title: string; body: string
+    async function poll() {
+      try {
+        const res = await fetch(`/api/notifications/unread?since=${encodeURIComponent(lastCheck.current)}`)
+        const { notifications } = await res.json() as {
+          notifications: Array<{
+            id: string; title: string; body: string; type: string
             data: { lance_percent?: number; probability?: number; lance_value?: number; for_manager?: boolean; seller_name?: string }
-          }
-
-          const toast: Toast = {
-            id: n.id,
-            title: n.title,
-            body: n.body,
-            lance_percent: n.data?.lance_percent ?? null,
-            probability: n.data?.probability ?? null,
-            lance_value: n.data?.lance_value ?? null,
-            for_manager: n.data?.for_manager ?? false,
-            seller_name: n.data?.seller_name ?? null,
-          }
-
-          playSound()
-          setToasts((prev) => [toast, ...prev].slice(0, 5))
-
-          // Auto-dismiss após 8s
-          setTimeout(() => dismiss(toast.id), 8000)
+            created_at: string
+          }>
         }
-      )
-      .subscribe()
 
-    return () => { supabase.removeChannel(channel) }
+        lastCheck.current = new Date().toISOString()
+
+        const novos = notifications.filter((n) => !seenIds.current.has(n.id))
+        if (novos.length === 0) return
+
+        novos.forEach((n) => seenIds.current.add(n.id))
+        playSound()
+
+        const newToasts: Toast[] = novos.map((n) => ({
+          id: n.id,
+          title: n.title,
+          body: n.body,
+          lance_percent: n.data?.lance_percent ?? null,
+          probability: n.data?.probability ?? null,
+          lance_value: n.data?.lance_value ?? null,
+          for_manager: n.data?.for_manager ?? false,
+          seller_name: n.data?.seller_name ?? null,
+        }))
+
+        setToasts((prev) => [...newToasts, ...prev].slice(0, 5))
+        newToasts.forEach((t) => setTimeout(() => dismiss(t.id), 8000))
+      } catch { /* ignora erros de rede */ }
+    }
+
+    const interval = setInterval(poll, 5000)
+    return () => clearInterval(interval)
   }, [userId, dismiss])
 
   if (toasts.length === 0) return null
@@ -190,13 +172,13 @@ export default function RealtimeToast({ userId }: { userId: string }) {
   return (
     <>
       <style>{`
-        @keyframes toastSlideIn {
-          from { opacity: 0; transform: translateX(120%) scale(0.92); }
-          to   { opacity: 1; transform: translateX(0)   scale(1); }
+        @keyframes toastIn {
+          from { opacity:0; transform:translateX(110%) scale(0.92); }
+          to   { opacity:1; transform:translateX(0)   scale(1); }
         }
-        @keyframes toastProgress {
-          from { transform: scaleX(1); transform-origin: left; }
-          to   { transform: scaleX(0); transform-origin: left; }
+        @keyframes toastBar {
+          from { transform:scaleX(1); transform-origin:left; }
+          to   { transform:scaleX(0); transform-origin:left; }
         }
       `}</style>
 
