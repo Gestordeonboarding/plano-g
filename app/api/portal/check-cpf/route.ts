@@ -16,20 +16,42 @@ export async function POST(request: Request) {
     const { data: tenant } = await admin.from('tenants').select('id').eq('slug', slug).single()
     if (!tenant) return NextResponse.json({ error: 'Escritório não encontrado.' }, { status: 404 })
 
+    const tenantId = (tenant as { id: string }).id
+
+    // Busca por dígitos puros ou CPF formatado
+    const cpfFormatted = digits.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
     const { data: cons } = await admin
       .from('consorciados')
-      .select('full_name, user_id')
-      .eq('tenant_id', (tenant as { id: string }).id)
-      .eq('cpf', digits)
+      .select('id, full_name, user_id, cpf')
+      .eq('tenant_id', tenantId)
+      .or(`cpf.eq.${digits},cpf.eq.${cpfFormatted}`)
       .limit(1)
 
     const con = cons?.[0] ?? null
     if (!con) return NextResponse.json({ error: 'CPF não encontrado. Fale com seu consultor.' }, { status: 404 })
 
-    const c = con as { full_name: string; user_id: string | null }
-    if (!c.user_id) return NextResponse.json({ error: 'Conta não ativada. Use "Sou novo aqui".' }, { status: 403 })
+    const c = con as { id: string; full_name: string; user_id: string | null; cpf: string | null }
 
-    return NextResponse.json({ name: c.full_name.split(' ')[0] })
+    // Se já tem user_id vinculado, tudo certo
+    if (c.user_id) return NextResponse.json({ name: c.full_name.split(' ')[0] })
+
+    // Sem user_id: tenta encontrar conta auth já existente e relinkar
+    const portalEmail = `${digits}@portal.local`
+    const { data: listData } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 })
+    const existingAuthUser = listData?.users?.find((u) => u.email === portalEmail)
+
+    if (existingAuthUser) {
+      // Conta auth existe mas não estava linkada — linka agora
+      await admin.from('consorciados')
+        .update({ user_id: existingAuthUser.id })
+        .or(`cpf.eq.${digits},cpf.eq.${cpfFormatted}`)
+        .eq('tenant_id', tenantId)
+
+      return NextResponse.json({ name: c.full_name.split(' ')[0] })
+    }
+
+    // Realmente nunca criou conta
+    return NextResponse.json({ error: 'Conta não ativada. Use "Sou novo aqui".' }, { status: 403 })
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 })
   }
