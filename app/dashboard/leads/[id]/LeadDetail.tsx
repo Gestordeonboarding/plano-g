@@ -218,7 +218,7 @@ export default function LeadDetail({ lead: initialLead, sellers }: {
       </div>
 
       {/* Converter */}
-      {status !== 'convertido' && status !== 'perdido' && (
+      {status !== 'perdido' && (
         <div className="card-pg p-5">
           <div className="flex items-center justify-between mb-3">
             <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Converter em consorciado</p>
