@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import DashboardSidebar from '@/components/dashboard/Sidebar'
+import MobileNav from '@/components/dashboard/MobileNav'
 import RealtimeToast from '@/components/dashboard/RealtimeToast'
 import { daysSince } from '@/lib/utils'
 import Link from 'next/link'
@@ -48,7 +49,15 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <div className="flex min-h-screen" style={{ backgroundColor: 'var(--bg-primary)' }}>
-      <DashboardSidebar tenantName={t?.name || 'Escritório'} role={sidebarRole} />
+      {/* Sidebar — visível apenas em telas md+ */}
+      <div className="hidden md:block">
+        <DashboardSidebar tenantName={t?.name || 'Escritório'} role={sidebarRole} />
+      </div>
+
+      {/* Bottom nav — visível apenas no mobile */}
+      <div className="block md:hidden">
+        <MobileNav tenantName={t?.name || 'Escritório'} role={sidebarRole} />
+      </div>
 
       <div className="flex-1 flex flex-col min-w-0">
         {/* Banner de impersonação */}
@@ -109,7 +118,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
           </div>
         )}
 
-        <main className="flex-1 p-6">{children}</main>
+        {/* pb-16 no mobile para não sobrepor o bottom nav */}
+        <main className="flex-1 p-4 md:p-6 pb-20 md:pb-6">{children}</main>
       </div>
 
       <RealtimeToast userId={user.id} />
