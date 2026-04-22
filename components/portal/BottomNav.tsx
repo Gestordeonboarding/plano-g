@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, TrendingUp, MessageCircle, User } from 'lucide-react'
+import { Home, TrendingUp, MessageCircle, User, LayoutGrid } from 'lucide-react'
 
 export default function PortalBottomNav({ slug }: { slug: string }) {
   const pathname = usePathname()
@@ -30,6 +30,12 @@ export default function PortalBottomNav({ slug }: { slug: string }) {
       icon: TrendingUp,
       href: currentCotaId ? `${base}/cota/${currentCotaId}` : base,
       active: pathname.startsWith(`${base}/cota/`) || pathname.startsWith(`${base}/simulador`),
+    },
+    {
+      label: 'Catálogo',
+      icon: LayoutGrid,
+      href: `${base}/catalogo`,
+      active: pathname.startsWith(`${base}/catalogo`),
     },
     {
       label: 'Chat',
