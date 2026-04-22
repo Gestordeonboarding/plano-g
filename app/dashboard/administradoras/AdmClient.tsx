@@ -1,11 +1,11 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState } from 'react'
 import { Plus, X, ChevronDown, ToggleLeft, ToggleRight, Pencil, Trash2, TrendingUp, Building2, LayoutGrid, FileText } from 'lucide-react'
 
 // ── Types ──────────────────────────────────────────────────────────
 type Adm = { id: string; nome: string; slug: string; cor: string }
-type TAdm = {
+export type TAdm = {
   id: string
   taxa_administracao: number
   fundo_reserva: number

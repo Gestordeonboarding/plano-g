@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { createClient as createAdmin } from '@supabase/supabase-js'
 import { getViewingTenantId } from '@/lib/supabase/get-tenant'
-import AdmClient from './AdmClient'
+import AdmClient, { type TAdm } from './AdmClient'
 
 const admin = createAdmin(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -30,7 +30,7 @@ export default async function AdministradorasPage() {
   return (
     <AdmClient
       allAdministradoras={allAdm ?? []}
-      initialTenantAdm={tenantAdm ?? []}
+      initialTenantAdm={(tenantAdm ?? []) as unknown as TAdm[]}
       initialCartas={allCartas ?? []}
     />
   )
