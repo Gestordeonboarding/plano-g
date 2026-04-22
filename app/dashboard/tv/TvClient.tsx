@@ -233,7 +233,7 @@ export default function TvClient({ initialRanking }: { initialRanking: SellerRan
               {clock.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
             </p>
           </div>
-          <RoyalOakClock size={140} />
+          <RoyalOakClock size={170} />
         </div>
       </div>
 
