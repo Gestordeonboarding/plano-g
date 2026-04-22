@@ -18,20 +18,25 @@ export default async function TvPage() {
   const tenantId = await getViewingTenantId()
   if (!tenantId) redirect('/login')
 
-  const { data: userData } = await supabase.from('users').select('role').eq('id', user.id).single()
-  const role = (userData as { role: string } | null)?.role || 'seller'
-  const isManager = role !== 'seller'
+  const [{ data: sellers }, { data: leads }] = await Promise.all([
+    admin.from('users').select('id, full_name, email').eq('tenant_id', tenantId),
+    admin.from('leads').select('seller_id, status').eq('tenant_id', tenantId),
+  ])
 
-  const leadsQuery = admin
-    .from('leads')
-    .select('status')
-    .eq('tenant_id', tenantId)
+  const allLeads = (leads || []) as Array<{ seller_id: string | null; status: string }>
+  const allSellers = (sellers || []) as Array<{ id: string; full_name: string | null; email: string | null }>
 
-  const { data: leadsData } = role === 'seller'
-    ? await leadsQuery.eq('seller_id', user.id)
-    : await leadsQuery
+  const ranking = allSellers.map((s) => {
+    const myLeads = allLeads.filter((l) => l.seller_id === s.id)
+    const converted = myLeads.filter((l) => l.status === 'convertido').length
+    const proposta = myLeads.filter((l) => l.status === 'proposta_enviada').length
+    const documentacao = myLeads.filter((l) => l.status === 'documentacao').length
+    const total = myLeads.length
+    const score = converted * 10 + documentacao * 4 + proposta * 2 + (total - converted - documentacao - proposta)
+    return { id: s.id, name: s.full_name || s.email || 'Vendedor', converted, proposta, documentacao, total, score }
+  })
+  .filter((s) => s.total > 0)
+  .sort((a, b) => b.score - a.score || b.converted - a.converted)
 
-  const leads = (leadsData || []) as Array<{ status: string }>
-
-  return <TvClient initialLeads={leads} isManager={isManager} />
+  return <TvClient initialRanking={ranking} />
 }
