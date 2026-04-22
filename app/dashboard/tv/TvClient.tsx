@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { TrendingUp, Phone, Trophy, Medal, Star } from 'lucide-react'
+import RoyalOakClock from '@/components/dashboard/RoyalOakClock'
 
 type SellerRank = {
   id: string
@@ -226,13 +227,13 @@ export default function TvClient({ initialRanking }: { initialRanking: SellerRan
           </p>
           <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>Atualizado em tempo real</p>
         </div>
-        <div style={{ textAlign: 'right' }}>
-          <p style={{ fontSize: 42, fontWeight: 900, color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
-            {clock.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-          </p>
-          <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
-            {clock.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
-          </p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+          <div style={{ textAlign: 'right' }}>
+            <p style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 600 }}>
+              {clock.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
+            </p>
+          </div>
+          <RoyalOakClock size={140} />
         </div>
       </div>
 
