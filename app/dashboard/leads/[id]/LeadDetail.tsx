@@ -1,10 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { MessageCircle, Send } from 'lucide-react'
+import { MessageCircle, Send, Phone, Calendar } from 'lucide-react'
 import { formatCurrency, formatDate, formatPhone } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
+import CallLogModal from '@/components/dashboard/CallLogModal'
+import { OUTCOME_LABELS, OUTCOME_EMOJI, OUTCOME_COLORS } from '@/lib/calls'
+import type { CallLog } from '@/types/database'
 
 const STATUS_OPTIONS = [
   { value: 'novo', label: 'Novo' },
@@ -33,6 +36,29 @@ export default function LeadDetail({ lead: initialLead, sellers }: {
   const lead = initialLead as unknown as Lead
   const router = useRouter()
   const [status, setStatus] = useState(lead.status)
+
+  // Ligações
+  const [callModalOpen, setCallModalOpen] = useState(false)
+  const [calls, setCalls] = useState<CallLog[]>([])
+  const [currentSellerId, setCurrentSellerId] = useState<string | null>(null)
+
+  const refreshCalls = useCallback(async () => {
+    const supabase = createClient()
+    const { data } = await supabase
+      .from('call_logs')
+      .select('*')
+      .eq('lead_id', lead.id)
+      .order('called_at', { ascending: false })
+    if (data) setCalls(data as CallLog[])
+  }, [lead.id])
+
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) setCurrentSellerId(user.id)
+    })
+    refreshCalls()
+  }, [refreshCalls])
   const [notes, setNotes] = useState(lead.notes || '')
   const [lostReason, setLostReason] = useState(lead.lost_reason || '')
   const [saving, setSaving] = useState(false)
@@ -138,6 +164,17 @@ export default function LeadDetail({ lead: initialLead, sellers }: {
           <Pill color="muted">Origem: {lead.source}</Pill>
           <Pill color="muted">Desde {formatDate(lead.created_at)}</Pill>
         </div>
+
+        {/* Ações rápidas */}
+        <div className="flex flex-wrap gap-2 mt-4 pt-4" style={{ borderTop: '1px solid var(--border-color)' }}>
+          <button
+            onClick={() => setCallModalOpen(true)}
+            className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg font-medium transition-colors"
+            style={{ backgroundColor: 'rgba(0,212,200,0.12)', color: 'var(--accent)' }}
+          >
+            <Phone size={14} /> Registrar ligação
+          </button>
+        </div>
       </div>
 
       {/* WhatsApp manual */}
@@ -194,6 +231,104 @@ export default function LeadDetail({ lead: initialLead, sellers }: {
           ))}
         </div>
       </div>
+
+      {/* Histórico de ligações */}
+      {calls.length > 0 && (
+        <div className="card-pg p-5 flex flex-col gap-3">
+          <div className="flex items-center gap-2">
+            <Phone size={14} style={{ color: 'var(--accent)' }} />
+            <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
+              Histórico de ligações
+            </p>
+            <span
+              className="text-[10px] px-1.5 py-0.5 rounded-full font-bold ml-auto"
+              style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-muted)' }}
+            >
+              {calls.length}
+            </span>
+          </div>
+          <div className="flex flex-col gap-2">
+            {calls.map((c) => {
+              const colors = OUTCOME_COLORS[c.outcome]
+              return (
+                <div
+                  key={c.id}
+                  className="flex items-start gap-3 p-3 rounded-lg"
+                  style={{ backgroundColor: 'var(--bg-tertiary)' }}
+                >
+                  <span style={{ fontSize: 18 }}>{OUTCOME_EMOJI[c.outcome]}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span
+                        className="text-[11px] px-1.5 py-0.5 rounded-full font-bold"
+                        style={{
+                          backgroundColor: colors.bg,
+                          color: colors.text,
+                          fontWeight: colors.bold ? 800 : 700,
+                        }}
+                      >
+                        {OUTCOME_LABELS[c.outcome]}
+                      </span>
+                      <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                        {new Date(c.called_at).toLocaleString('pt-BR', {
+                          day: '2-digit',
+                          month: '2-digit',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </span>
+                      {c.duration_minutes != null && (
+                        <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                          · {c.duration_minutes} min
+                        </span>
+                      )}
+                    </div>
+                    {c.notes && (
+                      <p
+                        className="text-xs mt-1.5"
+                        style={{ color: 'var(--text-secondary)', lineHeight: 1.5 }}
+                      >
+                        {c.notes}
+                      </p>
+                    )}
+                    {c.scheduled_callback_at && (
+                      <div
+                        className="flex items-center gap-1 text-[11px] mt-1.5 px-2 py-1 rounded w-fit"
+                        style={{
+                          backgroundColor: 'rgba(167,139,250,0.12)',
+                          color: '#A78BFA',
+                        }}
+                      >
+                        <Calendar size={11} /> Retorno agendado para{' '}
+                        {new Date(c.scheduled_callback_at).toLocaleString('pt-BR', {
+                          day: '2-digit',
+                          month: '2-digit',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Modal de registrar ligação */}
+      {currentSellerId && (
+        <CallLogModal
+          isOpen={callModalOpen}
+          onClose={() => setCallModalOpen(false)}
+          onSuccess={refreshCalls}
+          leadId={lead.id}
+          contactName={lead.full_name}
+          contactPhone={lead.phone}
+          tenantId={lead.tenant_id}
+          sellerId={currentSellerId}
+        />
+      )}
 
       {/* Notas */}
       <div className="card-pg p-5 flex flex-col gap-3">

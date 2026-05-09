@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound, redirect } from 'next/navigation'
 import PresentModeClient from './PresentModeClient'
-import { Slide, PresentationTheme } from '@/lib/presentations/types'
+import { Slide, PresentationCustomization } from '@/lib/presentations/types'
 
 export default async function ApresentarPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -17,8 +17,8 @@ export default async function ApresentarPage({ params }: { params: Promise<{ id:
   return (
     <PresentModeClient
       title={p.title}
-      slides={p.slides as unknown as Slide[]}
-      theme={p.customization as unknown as PresentationTheme}
+      slides={p.slides as Slide[]}
+      customization={p.customization as PresentationCustomization}
     />
   )
 }

@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import PresentationEditor from '@/components/presentations/PresentationEditor'
+import BriefingWizard from '@/components/presentations/BriefingWizard'
 import { PresentationTemplate } from '@/lib/presentations/types'
 
 export default async function NovaApresentacaoPage({
@@ -13,26 +13,47 @@ export default async function NovaApresentacaoPage({
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: userData } = await supabase.from('users').select('tenant_id, full_name').eq('id', user.id).single()
-  const u = userData as { tenant_id: string; full_name: string | null } | null
+  if (!templateId) redirect('/dashboard/apresentacoes')
+
+  const { data: userData } = await supabase
+    .from('users')
+    .select('tenant_id, full_name, email, phone')
+    .eq('id', user.id)
+    .single()
+
+  const u = userData as {
+    tenant_id: string
+    full_name: string | null
+    email: string | null
+    phone: string | null
+  } | null
   if (!u) redirect('/login')
 
-  let template: PresentationTemplate | null = null
-  if (templateId) {
-    const { data } = await supabase
-      .from('presentation_templates').select('*').eq('id', templateId).single()
-    template = data as unknown as PresentationTemplate
-  }
-
+  const { data } = await supabase
+    .from('presentation_templates')
+    .select('*')
+    .eq('id', templateId)
+    .single()
+  const template = data as unknown as PresentationTemplate
   if (!template) redirect('/dashboard/apresentacoes')
 
+  // Pré-preenche com nome da empresa do tenant
+  const { data: tenant } = await supabase
+    .from('tenants')
+    .select('name')
+    .eq('id', u.tenant_id)
+    .single()
+  const companyName = (tenant as { name: string } | null)?.name || ''
+
   return (
-    <PresentationEditor
+    <BriefingWizard
       template={template}
       tenantId={u.tenant_id}
       sellerId={user.id}
-      presentationId={null}
-      initialPresentation={null}
+      defaultSellerName={u.full_name || ''}
+      defaultSellerPhone={u.phone || ''}
+      defaultSellerEmail={u.email || ''}
+      defaultCompanyName={companyName}
     />
   )
 }

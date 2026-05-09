@@ -6,6 +6,7 @@ import { TrendingUp, Users, UserCheck, Target, Calendar } from 'lucide-react'
 import { getViewingTenantId } from '@/lib/supabase/get-tenant'
 import SellerHomeClient from './SellerHomeClient'
 import AdminSellerStats from './AdminSellerStats'
+import TodayCallbacksClient from './TodayCallbacksClient'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -100,6 +101,39 @@ export default async function DashboardPage() {
 
   const adminName = (userData as { role: string; full_name: string | null } | null)?.full_name || 'Administrador'
 
+  // Retornos agendados para hoje (apenas para o vendedor logado se for seller; tenant todo se for admin)
+  const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString()
+  const endOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59).toISOString()
+  const callbacksQuery = db
+    .from('call_logs')
+    .select('id, contact_name, contact_phone, scheduled_callback_at, lead_id, consorciado_id, seller_id, tenant_id, called_at, outcome, duration_minutes, notes, created_at')
+    .eq('tenant_id', tenantId)
+    .gte('scheduled_callback_at', startOfToday)
+    .lte('scheduled_callback_at', endOfToday)
+    .order('scheduled_callback_at', { ascending: true })
+  const { data: callbacksRaw } = isSeller
+    ? await callbacksQuery.eq('seller_id', user.id)
+    : await callbacksQuery
+
+  const callbackList = (callbacksRaw || []) as Array<import('@/types/database').CallLog>
+
+  // Busca os nomes dos vendedores para enriquecer os callbacks
+  const sellerIds = Array.from(new Set(callbackList.map((c) => c.seller_id)))
+  const sellerNamesMap: Record<string, string> = {}
+  if (sellerIds.length > 0) {
+    const { data: sellersData } = await db
+      .from('users')
+      .select('id, full_name, email')
+      .in('id', sellerIds)
+    ;((sellersData || []) as Array<{ id: string; full_name: string | null; email: string | null }>).forEach((s) => {
+      sellerNamesMap[s.id] = s.full_name || s.email || 'Vendedor'
+    })
+  }
+  const callbacksToday = callbackList.map((c) => ({
+    ...c,
+    seller_name: sellerNamesMap[c.seller_id] ?? null,
+  }))
+
   const [leadsHoje, leadesMes, consorciados, proximasAssembleias, sellers] = await Promise.all([
     (isSeller
       ? supabase.from('leads').select('id').eq('tenant_id', tenantId).eq('seller_id', user.id)
@@ -156,6 +190,13 @@ export default async function DashboardPage() {
           currentMonth={currentMonth}
         />
       )}
+
+      {/* Retornos agendados para hoje */}
+      <TodayCallbacksClient
+        callbacks={callbacksToday}
+        currentUserId={user.id}
+        tenantId={tenantId}
+      />
 
       {/* Cards de métricas */}
       <div className="grid grid-cols-4 gap-4">

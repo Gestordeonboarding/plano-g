@@ -20,6 +20,33 @@ export type TriggerEvent =
   | 'pos_contemplacao'
   | 'inatividade_30d'
 
+// Rastreamento de ligações
+export type CallOutcome =
+  | 'atendeu'
+  | 'nao_atendeu'
+  | 'caixa_postal'
+  | 'numero_errado'
+  | 'agendou_reuniao'
+  | 'proposta_enviada'
+  | 'venda_realizada'
+  | 'nao_tem_interesse'
+
+export interface CallLog {
+  id: string
+  created_at: string
+  tenant_id: string
+  seller_id: string
+  lead_id?: string | null
+  consorciado_id?: string | null
+  contact_name: string
+  contact_phone?: string | null
+  called_at: string
+  duration_minutes?: number | null
+  outcome: CallOutcome
+  notes?: string | null
+  scheduled_callback_at?: string | null
+}
+
 export interface Database {
   public: {
     Tables: {
@@ -369,6 +396,39 @@ export interface Database {
           read_at?: string | null
         }
         Update: Partial<Database['public']['Tables']['chat_messages']['Insert']>
+      }
+      call_logs: {
+        Row: {
+          id: string
+          created_at: string
+          tenant_id: string
+          seller_id: string
+          lead_id: string | null
+          consorciado_id: string | null
+          contact_name: string
+          contact_phone: string | null
+          called_at: string
+          duration_minutes: number | null
+          outcome: CallOutcome
+          notes: string | null
+          scheduled_callback_at: string | null
+        }
+        Insert: {
+          id?: string
+          created_at?: string
+          tenant_id: string
+          seller_id: string
+          lead_id?: string | null
+          consorciado_id?: string | null
+          contact_name: string
+          contact_phone?: string | null
+          called_at?: string
+          duration_minutes?: number | null
+          outcome: CallOutcome
+          notes?: string | null
+          scheduled_callback_at?: string | null
+        }
+        Update: Partial<Database['public']['Tables']['call_logs']['Insert']>
       }
       presentation_templates: {
         Row: {

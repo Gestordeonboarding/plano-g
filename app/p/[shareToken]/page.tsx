@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { notFound } from 'next/navigation'
 import PublicPresentation from './PublicPresentation'
-import { Slide, PresentationTheme } from '@/lib/presentations/types'
+import { Slide, PresentationCustomization } from '@/lib/presentations/types'
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -27,11 +27,9 @@ export default async function PublicPresentationPage({ params }: { params: Promi
 
   if (p.share_expires_at && new Date(p.share_expires_at) < new Date()) notFound()
 
-  // Buscar tenant para WhatsApp
   const { data: tenant } = await supabaseAdmin
-    .from('tenants').select('name, primary_color, evolution_api_url').eq('id', p.tenant_id).single()
+    .from('tenants').select('name, primary_color').eq('id', p.tenant_id).single()
 
-  // Buscar telefone do seller
   let sellerPhone: string | null = null
   if (p.seller_id) {
     const { data: seller } = await supabaseAdmin.from('users').select('phone').eq('id', p.seller_id).single()
@@ -44,10 +42,9 @@ export default async function PublicPresentationPage({ params }: { params: Promi
     <PublicPresentation
       shareToken={shareToken}
       title={p.title}
-      slides={p.slides as unknown as Slide[]}
-      theme={p.customization as unknown as PresentationTheme}
+      slides={p.slides as Slide[]}
+      customization={p.customization as PresentationCustomization}
       tenantName={t?.name || 'Consultor'}
-      tenantColor={t?.primary_color || '#00D4C8'}
       sellerPhone={sellerPhone}
     />
   )

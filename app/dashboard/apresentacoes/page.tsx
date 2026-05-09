@@ -2,16 +2,9 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { formatDate } from '@/lib/utils'
-import { Plus, Eye, Edit } from 'lucide-react'
+import { Eye, Edit } from 'lucide-react'
 import { PresentationTemplate } from '@/lib/presentations/types'
-
-const CATEGORY_LABEL: Record<string, string> = {
-  imovel: 'Imóvel', auto: 'Auto', moto: 'Moto', servicos: 'Serviços', universal: 'Universal'
-}
-
-const ANIM_LABEL: Record<string, string> = {
-  fade: 'Fade', slide: 'Slide', zoom: 'Zoom', flip: 'Flip'
-}
+import TemplateCard from '@/components/presentations/TemplateCard'
 
 const STATUS_STYLE: Record<string, React.CSSProperties> = {
   rascunho: { backgroundColor: 'rgba(176,196,195,0.15)', color: 'var(--text-secondary)' },
@@ -48,7 +41,7 @@ export default async function ApresentacoesPage() {
       <div>
         <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>Apresentações</h1>
         <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
-          Crie propostas profissionais em minutos
+          Crie propostas profissionais animadas em minutos. Escolha um modelo e personalize com a administradora do seu cliente.
         </p>
       </div>
 
@@ -97,61 +90,29 @@ export default async function ApresentacoesPage() {
       )}
 
       <div>
-        <h2 className="font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>
+        <h2 className="font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
           Biblioteca de templates
           <span className="ml-2 text-xs px-2 py-0.5 rounded-full"
             style={{ backgroundColor: 'rgba(0,212,200,0.15)', color: 'var(--accent)' }}>
-            {templates.length} templates
+            {templates.length} modelos profissionais
           </span>
         </h2>
+        <p className="text-xs mb-5" style={{ color: 'var(--text-muted)' }}>
+          Cada template já vem com animações profissionais e a estrutura completa de venda — você só personaliza o conteúdo.
+        </p>
 
         {templates.length === 0 ? (
           <div className="card-pg p-10 text-center">
-            <p className="text-sm mb-3" style={{ color: 'var(--text-muted)' }}>Nenhum template ainda.</p>
+            <p className="text-sm mb-3" style={{ color: 'var(--text-muted)' }}>Nenhum template carregado.</p>
             <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-              Acesse o painel da agência e execute o seed de templates.
+              Acesse o painel da agência e execute o seed de templates v2.
             </p>
           </div>
         ) : (
           <div className="grid grid-cols-3 gap-4">
-            {templates.map((t) => {
-              const themeObj = t.theme as { accent_color?: string }
-              const accentColor = themeObj.accent_color || '#00D4C8'
-              const slidesArr = t.slides as unknown[]
-              return (
-                <div key={t.id} className="card-pg overflow-hidden flex flex-col">
-                  <div className="h-36 flex items-center justify-center relative overflow-hidden"
-                    style={{ backgroundColor: accentColor }}>
-                    <div className="text-center p-4">
-                      <p className="text-lg font-bold text-white">{t.name}</p>
-                      <p className="text-xs text-white/70 mt-1">{CATEGORY_LABEL[t.category]}</p>
-                    </div>
-                    <div className="absolute top-2 right-2">
-                      <span className="text-[10px] px-1.5 py-0.5 rounded font-medium"
-                        style={{ backgroundColor: 'rgba(0,0,0,0.3)', color: '#fff' }}>
-                        {ANIM_LABEL[t.animation_style]}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="p-4 flex flex-col gap-2 flex-1">
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>{t.name}</p>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full shrink-0 font-medium"
-                        style={{ backgroundColor: 'rgba(0,212,200,0.12)', color: 'var(--accent)' }}>
-                        {CATEGORY_LABEL[t.category]}
-                      </span>
-                    </div>
-                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                      {t.description} · {slidesArr.length} slides
-                    </p>
-                    <Link href={`/dashboard/apresentacoes/nova?template=${t.id}`}
-                      className="btn-primary text-sm text-center mt-auto flex items-center justify-center gap-2">
-                      <Plus size={14} /> Usar template
-                    </Link>
-                  </div>
-                </div>
-              )
-            })}
+            {templates.map((t) => (
+              <TemplateCard key={t.id} template={t} />
+            ))}
           </div>
         )}
       </div>
