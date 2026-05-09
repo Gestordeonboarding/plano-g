@@ -4,11 +4,12 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, Users, UserCheck, MessageSquare, Bell, Menu, X, Tv,
-  Upload, Zap, Settings, LogOut, UsersRound, Presentation, Code, BarChart3, Wifi, LineChart
+  Upload, Zap, Settings, LogOut, UsersRound, Presentation, Code, BarChart3, Wifi, LineChart, Phone
 } from 'lucide-react'
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { Logo } from '@/components/ui/Logo'
 
 type Role = 'seller' | 'tenant_admin' | 'agency_admin'
 
@@ -28,6 +29,7 @@ const allNavItems = [
   { href: '/dashboard/conversas',        label: 'Conversas',      icon: MessageSquare,                  roles: ['seller', 'tenant_admin', 'agency_admin'] },
   { href: '/dashboard/notificacoes',     label: 'Notificações',   icon: Bell,                           roles: ['seller', 'tenant_admin', 'agency_admin'] },
   { href: '/dashboard/relatorios',       label: 'Relatórios',     icon: BarChart3,                      roles: ['seller', 'tenant_admin', 'agency_admin'] },
+  { href: '/dashboard/relatorios/ligacoes', label: 'Ligações',    icon: Phone,                          roles: ['tenant_admin', 'agency_admin'] },
   { href: '/dashboard/tv',              label: 'Modo TV',         icon: Tv,                             roles: ['seller', 'tenant_admin', 'agency_admin'] },
   { href: '/dashboard/importar',         label: 'Importar dados', icon: Upload,                         roles: ['tenant_admin', 'agency_admin'] },
   { href: '/dashboard/conexoes',         label: 'Conexões',       icon: Wifi,                           roles: ['seller', 'tenant_admin', 'agency_admin'] },
@@ -72,14 +74,26 @@ export default function MobileNav({ tenantName, role }: { tenantName: string; ro
           >
             <style>{`@keyframes slideInLeft { from { transform: translateX(-100%) } to { transform: translateX(0) } }`}</style>
 
-            {/* Header do drawer */}
-            <div style={{ padding: '20px 16px 16px', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div>
-                <p style={{ fontWeight: 800, fontSize: 18, color: 'var(--accent)' }}>Plano G</p>
-                <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{tenantName}</p>
+            {/* Header do drawer — Logo + nome do tenant (sem texto "Plano G") */}
+            <div style={{
+              padding: '20px 16px 16px',
+              borderBottom: '1px solid var(--g-border-soft)',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1 }}>
+                <Logo size={28} />
+                <p style={{
+                  fontSize: 11, color: 'var(--g-text-secondary)', fontWeight: 500,
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                }}>
+                  {tenantName}
+                </p>
               </div>
-              <button onClick={() => setMenuOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
-                <X size={20} color="var(--text-muted)" />
+              <button
+                onClick={() => setMenuOpen(false)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0 }}
+              >
+                <X size={20} color="var(--g-text-muted)" />
               </button>
             </div>
 

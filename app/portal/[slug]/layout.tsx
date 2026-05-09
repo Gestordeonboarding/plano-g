@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import PortalBottomNav from '@/components/portal/BottomNav'
+import { Logo } from '@/components/ui/Logo'
 
 export default async function PortalLayout({
   children,
@@ -31,18 +32,35 @@ export default async function PortalLayout({
       {/* CSS variable dinâmica do tenant */}
       <style>{`:root { --tenant-primary: ${primaryColor}; }`}</style>
 
-      {/* Header */}
+      {/* Header — Logo + nome do tenant (logo do tenant tem prioridade se existir) */}
       <header
-        className="h-14 flex items-center px-4 shrink-0 border-b"
-        style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)' }}
+        className="h-14 shrink-0 border-b flex items-center"
+        style={{
+          backgroundColor: 'var(--g-bg-surface)',
+          borderColor: 'var(--g-border)',
+          padding: '14px 20px',
+          gap: 10,
+        }}
       >
         {t.logo_url ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={t.logo_url} alt={t.name} className="h-8 object-contain" />
         ) : (
-          <span className="font-bold text-lg" style={{ color: 'var(--tenant-primary)' }}>
-            {t.name}
-          </span>
+          <>
+            <Logo size={26} />
+            <span
+              style={{
+                fontSize: 13,
+                fontWeight: 500,
+                color: 'var(--g-text-primary)',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {t.name}
+            </span>
+          </>
         )}
       </header>
 

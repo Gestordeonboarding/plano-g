@@ -3,9 +3,10 @@ import { createClient } from '@/lib/supabase/server'
 import DashboardSidebar from '@/components/dashboard/Sidebar'
 import MobileNav from '@/components/dashboard/MobileNav'
 import RealtimeToast from '@/components/dashboard/RealtimeToast'
+import Topbar from '@/components/dashboard/Topbar'
 import { daysSince } from '@/lib/utils'
 import Link from 'next/link'
-import { AlertTriangle, ArrowLeft } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import { cookies } from 'next/headers'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -47,11 +48,21 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const daysSinceImport = daysSince(t?.last_spreadsheet_import)
   const isOutdated = daysSinceImport === null || daysSinceImport > 7
 
+  const alertMessage = isOutdated
+    ? daysSinceImport === null
+      ? 'Dados ainda não importados — Importar agora'
+      : `Dados desatualizados há ${daysSinceImport} dias — Importar`
+    : null
+
   return (
-    <div className="flex min-h-screen" style={{ backgroundColor: 'var(--bg-primary)' }}>
+    <div className="flex min-h-screen" style={{ backgroundColor: 'var(--g-bg-root)' }}>
       {/* Sidebar — visível apenas em telas md+ */}
       <div className="hidden md:block">
-        <DashboardSidebar tenantName={t?.name || 'Escritório'} role={sidebarRole} />
+        <DashboardSidebar
+          tenantName={t?.name || 'Escritório'}
+          role={sidebarRole}
+          user={{ fullName: u.full_name, email: u.email }}
+        />
       </div>
 
       {/* Bottom nav — visível apenas no mobile */}
@@ -63,63 +74,40 @@ export default async function DashboardLayout({ children }: { children: React.Re
         {/* Banner de impersonação */}
         {isViewingAs && (
           <div
-            className="flex items-center justify-between px-6 py-2.5 text-sm font-medium"
-            style={{ backgroundColor: 'var(--accent)', color: 'var(--bg-primary)' }}
+            className="flex items-center justify-between text-sm font-medium"
+            style={{
+              backgroundColor: 'var(--g-accent)',
+              color: 'var(--g-bg-root)',
+              padding: '8px 24px',
+            }}
           >
             <span>
               Você está visualizando como: <strong>{t?.name}</strong>
             </span>
             <Link
               href="/admin/view-as/clear"
-              className="flex items-center gap-1.5 px-3 py-1 rounded font-semibold text-xs"
-              style={{ backgroundColor: 'rgba(0,0,0,0.2)' }}
+              className="flex items-center gap-1.5 font-semibold text-xs"
+              style={{
+                backgroundColor: 'rgba(0,0,0,0.2)',
+                padding: '4px 10px',
+                borderRadius: 'var(--g-radius-sm)',
+              }}
             >
               <ArrowLeft size={12} /> Voltar ao painel da agência
             </Link>
           </div>
         )}
 
-        {/* Header */}
-        <header
-          className="h-14 flex items-center justify-between px-6 border-b shrink-0"
-          style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)' }}
+        {/* Topbar com breadcrumb + chip de alerta discreto */}
+        <Topbar alertMessage={alertMessage} />
+
+        {/* Conteúdo principal — padding 28/32 padrão do design system */}
+        <main
+          className="flex-1 pb-20 md:pb-7"
+          style={{ padding: '28px 32px' }}
         >
-          <div />
-          <div className="flex items-center gap-3">
-            <div className="text-right">
-              <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
-                {u.full_name || u.email}
-              </p>
-              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                {isViewingAs ? 'Agência (modo visualização)' : u.role === 'tenant_admin' ? 'Administrador' : 'Vendedor'}
-              </p>
-            </div>
-            <div
-              className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold"
-              style={{ backgroundColor: 'var(--accent)', color: 'var(--bg-primary)' }}
-            >
-              {(u.full_name || u.email || 'U')[0].toUpperCase()}
-            </div>
-          </div>
-        </header>
-
-        {/* Banner de dados desatualizados */}
-        {isOutdated && (
-          <div className="alert-outdated flex items-center gap-3 px-6 py-3">
-            <AlertTriangle size={16} />
-            <span className="text-sm">
-              {daysSinceImport === null
-                ? 'Dados ainda não importados.'
-                : `Dados desatualizados há ${daysSinceImport} dias.`}{' '}
-              <Link href="/dashboard/importar" className="font-semibold underline">
-                Importar agora →
-              </Link>
-            </span>
-          </div>
-        )}
-
-        {/* pb-16 no mobile para não sobrepor o bottom nav */}
-        <main className="flex-1 p-4 md:p-6 pb-20 md:pb-6">{children}</main>
+          {children}
+        </main>
       </div>
 
       <RealtimeToast userId={user.id} />

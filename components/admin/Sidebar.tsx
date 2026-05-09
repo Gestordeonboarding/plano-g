@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import { LayoutDashboard, Users, BarChart3, LogOut, LineChart } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { Logo } from '@/components/ui/Logo'
 
 const navItems = [
   { href: '/admin', label: 'Visão Geral', icon: LayoutDashboard, exact: true },
@@ -31,14 +32,20 @@ export default function AdminSidebar() {
         borderRight: '1px solid var(--border-color)',
       }}
     >
-      {/* Logo */}
-      <div className="px-6 py-6 border-b" style={{ borderColor: 'var(--border-color)' }}>
-        <span className="text-xl font-bold" style={{ color: 'var(--accent)' }}>
-          Plano G
-        </span>
-        <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-          Painel da Agência
-        </p>
+      {/* Logo — sem texto "Plano G", apenas SVG + label do contexto */}
+      <div
+        style={{
+          padding: '20px 16px 18px',
+          borderBottom: '1px solid var(--g-border-soft)',
+          flexShrink: 0,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <Logo size={30} />
+          <p style={{ fontSize: 11, fontWeight: 500, color: 'var(--g-text-secondary)', margin: 0 }}>
+            Painel da Agência
+          </p>
+        </div>
       </div>
 
       {/* Nav */}

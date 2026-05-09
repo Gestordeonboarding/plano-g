@@ -222,7 +222,7 @@ export default function TvClient({ initialRanking }: { initialRanking: SellerRan
       }}>
         <div>
           <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: 2 }}>
-            🏆 Plano G — Ranking de Vendedores
+            🏆 Ranking de Vendedores
           </p>
           <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>Atualizado em tempo real</p>
         </div>

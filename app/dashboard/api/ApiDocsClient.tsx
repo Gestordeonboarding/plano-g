@@ -144,7 +144,7 @@ $data = json_decode($response, true);`
         <div>
           <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>API de Leads</h1>
           <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>
-            Integre seu site, landing page ou CRM para enviar leads diretamente ao Plano G
+            Integre seu site, landing page ou CRM para enviar leads diretamente ao seu painel
           </p>
         </div>
       </div>

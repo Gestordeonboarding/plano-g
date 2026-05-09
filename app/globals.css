@@ -4,60 +4,95 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* ===== PLANO G — Design System Variables ===== */
+/* ===== PLANO G — Design System v4 ===== */
 :root {
-  /* Plano G dark palette */
-  --bg-primary:    #0D1F1E;
-  --bg-secondary:  #112926;
-  --bg-tertiary:   #0A1715;
-  --accent:        #00D4C8;
-  --accent-mid:    #00A89D;
-  --accent-dark:   #007A72;
-  --text-primary:  #E8F5F4;
-  --text-secondary:#B0C4C3;
-  --text-muted:    #5A7A78;
-  --border-color:  #1A3533;
-  --border-active: #00A89D;
-  --danger:        #FF5C5C;
-  --warning:       #FFB547;
-  --success:       #00D4C8;
+  /* === Novos tokens canônicos (--g-*) === */
+  --g-bg-root:    #080f0d;
+  --g-bg-surface: #0b1612;
+  --g-bg-depth:   #060c0a;
 
-  /* shadcn compatibility — mapped to Plano G palette */
-  --background:          #0D1F1E;
-  --foreground:          #E8F5F4;
-  --card:                #112926;
-  --card-foreground:     #E8F5F4;
-  --popover:             #112926;
-  --popover-foreground:  #E8F5F4;
-  --primary:             #00D4C8;
-  --primary-foreground:  #0D1F1E;
-  --secondary:           #1A3533;
-  --secondary-foreground:#E8F5F4;
-  --muted:               #0A1715;
-  --muted-foreground:    #5A7A78;
-  --accent:              #00D4C8;
-  --accent-foreground:   #0D1F1E;
-  --destructive:         #FF5C5C;
-  --border:              #1A3533;
-  --input:               #0A1715;
-  --ring:                #00A89D;
+  --g-accent:        #00c4b4;
+  --g-accent-dim:    rgba(0,196,180,0.10);
+  --g-accent-border: rgba(0,196,180,0.22);
+
+  --g-text-primary:   #dff0ed;
+  --g-text-secondary: #8ecec7;
+  --g-text-muted:     #3d6b5f;
+  --g-text-ghost:     #1e4038;
+
+  --g-border:       rgba(255,255,255,0.055);
+  --g-border-soft:  rgba(255,255,255,0.035);
+  --g-border-hover: rgba(255,255,255,0.10);
+
+  --g-warning-bg:     rgba(186,117,23,0.09);
+  --g-warning-border: rgba(186,117,23,0.22);
+  --g-warning-text:   #ba7517;
+  --g-danger-bg:      rgba(163,45,45,0.09);
+  --g-danger-border:  rgba(163,45,45,0.22);
+  --g-danger-text:    #e24b4a;
+  --g-success-bg:     rgba(99,153,34,0.09);
+  --g-success-border: rgba(99,153,34,0.22);
+  --g-success-text:   #639922;
+
+  --g-radius-xs: 4px;
+  --g-radius-sm: 6px;
+  --g-radius-md: 8px;
+  --g-radius-lg: 10px;
+  --g-radius-xl: 14px;
+
+  /* === Tokens legacy (mantidos como aliases pros novos valores) === */
+  /* Componentes existentes continuam usando --bg-primary etc. e ganham
+     o novo visual automaticamente. Migrar pra --g-* em iterações futuras. */
+  --bg-primary:    var(--g-bg-root);
+  --bg-secondary:  var(--g-bg-surface);
+  --bg-tertiary:   var(--g-bg-depth);
+  --accent:        var(--g-accent);
+  --accent-mid:    #00897b;
+  --accent-dark:   #0a3d35;
+  --text-primary:  var(--g-text-primary);
+  --text-secondary:var(--g-text-secondary);
+  --text-muted:    var(--g-text-muted);
+  --border-color:  var(--g-border);
+  --border-active: var(--g-accent);
+  --danger:        var(--g-danger-text);
+  --warning:       var(--g-warning-text);
+  --success:       var(--g-success-text);
+
+  /* shadcn compatibility — apontados pra paleta nova */
+  --background:          var(--g-bg-root);
+  --foreground:          var(--g-text-primary);
+  --card:                var(--g-bg-surface);
+  --card-foreground:     var(--g-text-primary);
+  --popover:             var(--g-bg-surface);
+  --popover-foreground:  var(--g-text-primary);
+  --primary:             var(--g-accent);
+  --primary-foreground:  var(--g-bg-root);
+  --secondary:           var(--g-bg-depth);
+  --secondary-foreground:var(--g-text-primary);
+  --muted:               var(--g-bg-depth);
+  --muted-foreground:    var(--g-text-muted);
+  --accent-foreground:   var(--g-bg-root);
+  --destructive:         var(--g-danger-text);
+  --border:              var(--g-border);
+  --input:               var(--g-bg-depth);
+  --ring:                var(--g-accent);
   --radius:              0.625rem;
 
   /* sidebar */
-  --sidebar:                    #112926;
-  --sidebar-foreground:         #E8F5F4;
-  --sidebar-primary:            #00D4C8;
-  --sidebar-primary-foreground: #0D1F1E;
-  --sidebar-accent:             rgba(0,212,200,0.12);
-  --sidebar-accent-foreground:  #00D4C8;
-  --sidebar-border:             #1A3533;
-  --sidebar-ring:               #00A89D;
+  --sidebar:                    var(--g-bg-surface);
+  --sidebar-foreground:         var(--g-text-primary);
+  --sidebar-primary:            var(--g-accent);
+  --sidebar-primary-foreground: var(--g-bg-root);
+  --sidebar-accent:             var(--g-accent-dim);
+  --sidebar-accent-foreground:  var(--g-accent);
+  --sidebar-border:             var(--g-border);
+  --sidebar-ring:               var(--g-accent);
 
   /* charts */
-  --chart-1: #00D4C8;
-  --chart-2: #00A89D;
-  --chart-3: #FFB547;
-  --chart-4: #FF5C5C;
+  --chart-1: var(--g-accent);
+  --chart-2: #00897b;
+  --chart-3: var(--g-warning-text);
+  --chart-4: var(--g-danger-text);
   --chart-5: #A78BFA;
 
   --radius-sm:  calc(var(--radius) * 0.6);
@@ -108,87 +143,151 @@
 }
 
 @layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
+  * { box-sizing: border-box; }
   body {
-    background-color: var(--bg-primary);
-    color: var(--text-primary);
+    background-color: var(--g-bg-root);
+    color: var(--g-text-primary);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
     @apply font-sans;
   }
-  html {
-    @apply font-sans;
-  }
+  html { @apply font-sans; }
 }
 
-/* ===== Utility classes Plano G ===== */
+/* ===== Scrollbar fina ===== */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 4px; }
+::selection { background: rgba(0,196,180,0.15); color: var(--g-accent); }
+
+/* ===== Form controls (inputs, selects, textareas) ===== */
+input, select, textarea {
+  background: var(--g-bg-depth);
+  border: 1px solid var(--g-border);
+  border-radius: var(--g-radius-md);
+  color: var(--g-text-primary);
+  font-size: 12.5px;
+  padding: 8px 12px;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  width: 100%;
+  font-family: inherit;
+}
+
+input::placeholder, textarea::placeholder { color: var(--g-text-ghost); }
+
+input:focus, select:focus, textarea:focus {
+  border-color: var(--g-accent);
+  box-shadow: 0 0 0 3px rgba(0,196,180,0.08);
+}
+
+select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%231e4038' stroke-width='2.5'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 28px;
+  cursor: pointer;
+}
+
+/* ===== Tabelas ===== */
+table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+
+thead th {
+  background: var(--g-bg-depth);
+  color: var(--g-text-ghost);
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  padding: 9px 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--g-border);
+  white-space: nowrap;
+}
+
+tbody tr {
+  border-bottom: 1px solid var(--g-border-soft);
+  transition: background 0.1s;
+}
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: rgba(255,255,255,0.02); }
+
+tbody td {
+  padding: 12px 14px;
+  color: var(--g-text-secondary);
+  vertical-align: middle;
+}
+tbody td:first-child { color: var(--g-text-primary); font-weight: 500; }
+
+/* ===== Utility classes Plano G (legacy — mantidas) ===== */
 .card-pg {
-  background-color: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
+  background-color: var(--g-bg-surface);
+  border: 1px solid var(--g-border);
+  border-radius: var(--g-radius-xl);
 }
 
 .input-pg {
-  background-color: var(--bg-tertiary);
-  border: 1px solid var(--border-color);
-  color: var(--text-primary);
-  border-radius: 8px;
+  background-color: var(--g-bg-depth);
+  border: 1px solid var(--g-border);
+  color: var(--g-text-primary);
+  border-radius: var(--g-radius-md);
   padding: 8px 12px;
   width: 100%;
   outline: none;
-  transition: border-color 0.15s;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 .input-pg:focus {
-  border-color: var(--border-active);
+  border-color: var(--g-accent);
+  box-shadow: 0 0 0 3px rgba(0,196,180,0.08);
 }
-.input-pg::placeholder {
-  color: var(--text-muted);
-}
+.input-pg::placeholder { color: var(--g-text-ghost); }
 
 .btn-primary {
-  background-color: var(--accent);
-  color: var(--bg-primary);
-  border-radius: 8px;
+  background-color: var(--g-accent);
+  color: var(--g-bg-root);
+  border-radius: var(--g-radius-md);
   padding: 10px 20px;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
   border: none;
-  transition: background-color 0.15s;
+  transition: opacity 0.15s;
 }
-.btn-primary:hover { background-color: var(--accent-mid); }
-.btn-primary:active { background-color: var(--accent-dark); }
+.btn-primary:hover { opacity: 0.9; }
+.btn-primary:active { opacity: 0.8; }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .btn-outline {
   background: transparent;
-  border: 1px solid var(--accent);
-  color: var(--accent);
-  border-radius: 8px;
+  border: 1px solid var(--g-accent);
+  color: var(--g-accent);
+  border-radius: var(--g-radius-md);
   padding: 10px 20px;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
   transition: background-color 0.15s;
 }
-.btn-outline:hover { background-color: rgba(0,212,200,0.08); }
+.btn-outline:hover { background-color: var(--g-accent-dim); }
 
 .badge-score-high {
-  background-color: rgba(0,212,200,0.15);
-  color: #00D4C8;
+  background-color: var(--g-accent-dim);
+  color: var(--g-accent);
   padding: 2px 8px;
   border-radius: 9999px;
   font-size: 12px;
   font-weight: 600;
 }
 .badge-score-mid {
-  background-color: rgba(255,181,71,0.15);
-  color: #FFB547;
+  background-color: var(--g-warning-bg);
+  color: var(--g-warning-text);
   padding: 2px 8px;
   border-radius: 9999px;
   font-size: 12px;
   font-weight: 600;
 }
 .badge-score-low {
-  background-color: rgba(255,92,92,0.15);
-  color: #FF5C5C;
+  background-color: var(--g-danger-bg);
+  color: var(--g-danger-text);
   padding: 2px 8px;
   border-radius: 9999px;
   font-size: 12px;
@@ -196,8 +295,8 @@
 }
 
 .alert-outdated {
-  background-color: rgba(255,181,71,0.10);
-  border-left: 3px solid #FFB547;
-  color: #FFB547;
+  background-color: var(--g-warning-bg);
+  border-left: 3px solid var(--g-warning-text);
+  color: var(--g-warning-text);
   padding: 12px 16px;
 }

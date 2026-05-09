@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { Logo } from '@/components/ui/Logo'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -36,66 +37,143 @@ export default function LoginPage() {
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center"
-      style={{ backgroundColor: 'var(--bg-primary)' }}
+      style={{
+        minHeight: '100vh',
+        background: 'var(--g-bg-root)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 24,
+      }}
     >
-      <div className="w-full max-w-sm px-6">
-        <div className="text-center mb-10">
-          <h1 className="text-4xl font-bold tracking-tight" style={{ color: 'var(--accent)' }}>
-            Plano G
-          </h1>
-          <p className="mt-2 text-sm" style={{ color: 'var(--text-muted)' }}>
-            Sistema de Consórcios
+      <div
+        style={{
+          width: '100%',
+          maxWidth: 360,
+          background: 'var(--g-bg-surface)',
+          border: '1px solid var(--g-border)',
+          borderRadius: 'var(--g-radius-xl)',
+          padding: '36px 32px',
+        }}
+      >
+        {/* ── Logo central — sem texto "Plano G" ─────────────────────── */}
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            marginBottom: 32,
+            gap: 14,
+          }}
+        >
+          <Logo size={52} />
+          <p style={{ fontSize: 12, color: 'var(--g-text-ghost)', margin: 0 }}>
+            Acesse sua conta
           </p>
         </div>
 
-        <div className="rounded-xl p-8" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }}>
-          <h2 className="text-lg font-semibold mb-6" style={{ color: 'var(--text-primary)' }}>
-            Entrar na plataforma
-          </h2>
+        {/* ── Formulário ─────────────────────────────────────────────── */}
+        <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div>
+            <label
+              htmlFor="email"
+              style={{
+                fontSize: 11,
+                color: 'var(--g-text-muted)',
+                display: 'block',
+                marginBottom: 5,
+              }}
+            >
+              E-mail
+            </label>
+            <input
+              id="email"
+              type="email"
+              autoComplete="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="seu@email.com"
+            />
+          </div>
 
-          <form onSubmit={handleLogin} className="flex flex-col gap-4">
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="email" className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
-                Email
-              </label>
-              <input
-                id="email" type="email" autoComplete="email" required
-                value={email} onChange={(e) => setEmail(e.target.value)}
-                className="input-pg" placeholder="seu@email.com"
-              />
-            </div>
+          <div>
+            <label
+              htmlFor="password"
+              style={{
+                fontSize: 11,
+                color: 'var(--g-text-muted)',
+                display: 'block',
+                marginBottom: 5,
+              }}
+            >
+              Senha
+            </label>
+            <input
+              id="password"
+              type="password"
+              autoComplete="current-password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+            />
+          </div>
 
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="password" className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
-                Senha
-              </label>
-              <input
-                id="password" type="password" autoComplete="current-password" required
-                value={password} onChange={(e) => setPassword(e.target.value)}
-                className="input-pg" placeholder="••••••••"
-              />
-            </div>
+          {error && (
+            <p
+              style={{
+                fontSize: 12,
+                color: 'var(--g-danger-text)',
+                background: 'var(--g-danger-bg)',
+                border: '1px solid var(--g-danger-border)',
+                borderRadius: 'var(--g-radius-md)',
+                padding: '8px 12px',
+                margin: 0,
+              }}
+            >
+              {error}
+            </p>
+          )}
 
-            {error && (
-              <p className="text-sm rounded-lg px-3 py-2"
-                style={{ color: 'var(--danger)', backgroundColor: 'rgba(255,92,92,0.10)' }}>
-                {error}
-              </p>
-            )}
-
-            <button type="submit" disabled={loading}
-              className="btn-primary mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{ width: '100%' }}>
-              {loading ? 'Entrando...' : 'Entrar'}
-            </button>
-          </form>
-        </div>
-
-        <p className="text-center text-xs mt-6" style={{ color: 'var(--text-muted)' }}>
-          Acesso restrito. Solicite credenciais ao administrador.
-        </p>
+          <button
+            type="submit"
+            disabled={loading}
+            style={{
+              marginTop: 8,
+              width: '100%',
+              background: 'var(--g-accent)',
+              color: 'var(--g-bg-root)',
+              border: 'none',
+              borderRadius: 'var(--g-radius-md)',
+              padding: 10,
+              fontSize: 13,
+              fontWeight: 500,
+              cursor: loading ? 'not-allowed' : 'pointer',
+              opacity: loading ? 0.5 : 1,
+              transition: 'opacity 0.15s',
+            }}
+          >
+            {loading ? 'Entrando...' : 'Entrar'}
+          </button>
+        </form>
       </div>
+
+      {/* Aviso fora do card, bem discreto */}
+      <p
+        style={{
+          position: 'absolute',
+          bottom: 24,
+          left: 0,
+          right: 0,
+          textAlign: 'center',
+          fontSize: 11,
+          color: 'var(--g-text-ghost)',
+          margin: 0,
+        }}
+      >
+        Acesso restrito — Solicite credenciais ao administrador
+      </p>
     </div>
   )
 }
