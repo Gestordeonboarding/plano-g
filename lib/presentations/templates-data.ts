@@ -1,155 +1,358 @@
-import { Slide, PresentationTheme, EditableField } from './types'
+/**
+ * 8 templates de apresentação — todos compartilham o DNA Dark Tech Premium
+ * mas cada um aplica um theme distinto (paleta + tipografia + ornamento).
+ *
+ * Estratégia:
+ *   - O conteúdo de consórcio (CONSORCIO_CONTENT) é COMPARTILHADO entre todos
+ *     os templates — assim a venda é coerente independente do theme escolhido.
+ *   - Cada template define apenas: theme_id, nome, descrição, categoria e
+ *     admin default (para sugestão inicial — usuário pode trocar).
+ *   - Os 10 slides são gerados pelos builders genéricos em slide-builders.ts.
+ */
 
-const defaultTheme: PresentationTheme = {
-  accent_color: '#00D4C8',
-  bg_color: '#0D1F1E',
-  font: 'inter',
-  show_logo: true,
+import {
+  Slide, PresentationCustomization, PresentationTemplate, TemplateCategory,
+} from './types'
+import { ThemeId } from './themes'
+import {
+  buildCapa, buildSobre, buildAlinhamento, buildTransicao,
+  buildFases, buildFeaturesDuplo, buildCardsGrid, buildPricing,
+  buildProcessoHorizontal, buildProposta,
+  CapaContent, SobreContent, AlinhamentoContent, TransicaoContent,
+  FasesContent, FeaturesDuploContent, CardsGridContent, PricingContent,
+  ProcessoContent, PropostaContent,
+} from './slide-builders'
+import { getTheme } from './themes'
+
+// ============================================================================
+//  Conteúdo de consórcio — compartilhado entre os 8 templates
+// ============================================================================
+
+const COVER_CONTENT: CapaContent = {
+  welcomeText: 'PROPOSTA EXCLUSIVA PARA',
+  title: 'O CAMINHO INTELIGENTE\nPARA SEU PRÓXIMO BEM',
+  titleFieldKey: 'cover_title',
 }
 
-function field(key: string, label: string, placeholder: string, required = false): EditableField {
-  return { key, label, type: 'text', value: '', placeholder, required, max_chars: 100 }
-}
-function currencyField(key: string, label: string, placeholder = 'R$ 0,00'): EditableField {
-  return { key, label, type: 'currency', value: '', placeholder, required: false }
-}
-function textareaField(key: string, label: string, placeholder: string): EditableField {
-  return { key, label, type: 'textarea', value: '', placeholder, required: false, max_chars: 500 }
+const SOBRE_CONTENT: SobreContent = {
+  smallLabel: 'SOBRE NÓS',
+  heading: 'SOMOS A SUA PARCEIRA\nDE PLANEJAMENTO',
+  paragraph:
+    'Há mais de 10 anos transformando sonhos em realidade através de planejamento financeiro inteligente, com a transparência e a previsibilidade que o consórcio oferece.',
+  stats: [
+    { value: '+1.500', label: 'Famílias Atendidas' },
+    { value: '+R$ 120M', label: 'em Cartas Contempladas' },
+    { value: '10+', label: 'Anos de Mercado' },
+  ],
+  ctaFooter: 'Especialistas em consórcio de imóvel, automóvel e serviços.',
+  imageUrl: null,
 }
 
-function makeSlide(id: string, type: Slide['type'], title: string, fields: EditableField[], layout: Slide['layout'] = 'centered', bg: Slide['background'] = 'dark'): Slide {
-  return { id, type, title, editable_fields: fields, layout, background: bg, locked: false, visible: true }
+const ALINHAMENTO_CONTENT: AlinhamentoContent = {
+  heading: 'O QUE É (E NÃO É) CONSÓRCIO',
+  subheading: 'Antes de começar, é importante alinhar o que esperar deste planejamento.',
+  positiveLabel: 'O QUE FAZEMOS',
+  negativeLabel: 'O QUE NÃO FAZEMOS',
+  positives: [
+    'Planejamos seu próximo bem com previsibilidade',
+    'Buscamos a melhor estratégia de lance pra você',
+    'Acompanhamos do início até a contemplação',
+    'Parcelas até 70% menores que financiamento bancário',
+    'Sem juros — apenas taxa de administração transparente',
+  ],
+  negatives: [
+    'Não somos financiamento — não há juros mensais',
+    'Não há garantia de contemplação imediata',
+    'Não cobramos taxas escondidas ou surpresas',
+    'Não tomamos decisão sem você entender cada etapa',
+    'Não trabalhamos com promessas falsas de prazo',
+  ],
 }
 
-export const TEMPLATES = [
+const TRANSICAO_CONTENT: TransicaoContent = {
+  watermark: '01',
+  topBadge: 'METODOLOGIA',
+  sectionName: 'COMO FUNCIONA',
+  iconName: 'TrendingUp',
+  tagline: 'Um processo simples, transparente e auditável',
+}
+
+const FASES_CONTENT: FasesContent = {
+  heading: 'JORNADA ATÉ A CONTEMPLAÇÃO',
+  watermark: 'PROCESSO',
+  centerIcon: 'RefreshCw',
+  currentPhaseLabel: 'CICLO MENSAL',
+  pastPhases: [
+    'Análise de perfil e orçamento',
+    'Escolha da carta ideal',
+    'Adesão ao grupo',
+    'Primeira parcela paga',
+  ],
+  futurePhases: [
+    'Assembleia mensal',
+    'Estratégia de lance',
+    'Contemplação',
+    'Uso da carta de crédito',
+  ],
+}
+
+const FEATURES_CONTENT: FeaturesDuploContent = {
+  smallLabel: 'PLATAFORMA EXCLUSIVA',
+  heading: 'TUDO NA PALMA DA SUA MÃO',
+  left: {
+    subtitle: 'PORTAL DO CONSORCIADO',
+    title: 'ACOMPANHAMENTO\nEM TEMPO REAL',
+    description:
+      'Extrato, próxima assembleia, status de lance e simulações — tudo online, 24 horas por dia.',
+    mockup: 'portal',
+  },
+  right: {
+    subtitle: 'TIME ESPECIALIZADO',
+    title: 'CONSULTORIA\nHUMANIZADA',
+    description:
+      'Atendimento humano via WhatsApp + IA pra sugerir o melhor momento de dar lance.',
+    mockup: 'whatsapp',
+  },
+}
+
+const CARDS_GRID_CONTENT: CardsGridContent = {
+  heading: 'POR QUE CONSÓRCIO',
+  subheading: '6 razões pelas quais é a escolha de quem planeja com inteligência.',
+  cards: [
+    { icon: 'Shield', name: 'SEGURANÇA', detail: 'Administradoras autorizadas pelo Banco Central, com fiscalização constante.' },
+    { icon: 'TrendingUp', name: 'CRÉDITO CORRIGIDO', detail: 'Sua carta acompanha índices oficiais — sem perda de poder de compra.' },
+    { icon: 'Zap', name: 'FLEXIBILIDADE', detail: 'Use a carta para imóvel, auto, reforma, construção ou serviços. Você decide.' },
+    { icon: 'Calculator', name: 'PARCELAS QUE CABEM', detail: 'Até 70% menor que financiamento. Sem juros — só taxa de administração.' },
+    { icon: 'Users', name: 'ATENDIMENTO HUMANO', detail: 'Especialistas com você do início ao fim — sem chatbots, sem URA.' },
+    { icon: 'Award', name: 'HISTÓRICO COMPROVADO', detail: 'Mais de 1.500 famílias contempladas. A maior taxa de satisfação da região.' },
+  ],
+  closingLine: 'Tudo isso com a transparência que você espera de um especialista.',
+}
+
+const PRICING_CONTENT: PricingContent = {
+  heading: 'CARTAS DISPONÍVEIS HOJE',
+  subheading: 'Duas opções pensadas pro seu momento — escolha a que faz mais sentido.',
+  plans: [
+    {
+      name: 'CARTA ESSENCIAL',
+      items: [
+        'Crédito de R$ 250.000',
+        'Prazo de 180 meses',
+        'Taxa de administração 18%',
+        'Lance livre permitido',
+        'Sem fundo de reserva extra',
+      ],
+      oldPrice: 'De R$ 1.890/mês',
+      price: 'R$ 1.450',
+      priceLabel: 'PARCELA MENSAL',
+      ctaLabel: 'PAGAMENTO MENSAL — SEM JUROS',
+    },
+    {
+      name: 'CARTA EXPANSIVA',
+      items: [
+        'Crédito de R$ 500.000',
+        'Prazo de 200 meses',
+        'Taxa de administração 20%',
+        'Lance livre + lance fixo de 25%',
+        'Seguro de quitação incluso',
+      ],
+      oldPrice: 'De R$ 3.420/mês',
+      price: 'R$ 2.890',
+      priceLabel: 'PARCELA MENSAL',
+      ctaLabel: 'CONTEMPLAÇÃO ACELERADA',
+      highlighted: true,
+    },
+  ],
+}
+
+const PROCESSO_CONTENT: ProcessoContent = {
+  heading: 'OS 5 PASSOS DA SUA JORNADA',
+  steps: [
+    { name: 'SIMULAÇÃO', description: 'Escolhemos juntos a carta que cabe no seu orçamento e prazo.' },
+    { name: 'ADESÃO', description: 'Assinatura digital. Você entra no grupo já com plano de lance.' },
+    { name: 'ASSEMBLEIA', description: 'Mensal. Sua chance de ser contemplado por sorteio ou lance.' },
+    { name: 'CONTEMPLAÇÃO', description: 'Carta liberada. Você usa o crédito ou aguarda valorização.' },
+    { name: 'USO + QUITAÇÃO', description: 'Compra do bem com a carta + parcelas até o fim do prazo.' },
+  ],
+  fineprint:
+    'Os prazos de contemplação dependem da assembleia e da estratégia de lance. Consulte sempre o regulamento do grupo. Administradora autorizada pelo Banco Central do Brasil.',
+}
+
+const PROPOSTA_CONTENT: PropostaContent = {
+  heading: 'PROPOSTA PERSONALIZADA',
+  subheading: 'Duas configurações pensadas pro perfil que você compartilhou.',
+  panels: [
+    {
+      panelTitle: 'CARTA ESSENCIAL',
+      items: [
+        'Crédito R$ 250.000 corrigido pelo INCC',
+        '180 meses (15 anos)',
+        'Lance livre + estratégia consultiva',
+        'Atendimento dedicado pelo painel',
+        'Sem entrada — primeira parcela só após adesão',
+        'Quitação ao final ou via lance',
+      ],
+      priceBadge: 'R$ 1.450/MÊS',
+      priceCaption: 'Pagamento mensal sem juros',
+    },
+    {
+      panelTitle: 'CARTA EXPANSIVA',
+      items: [
+        'Crédito R$ 500.000 corrigido pelo INCC',
+        '200 meses (16,6 anos)',
+        'Lance fixo 25% pra contemplação acelerada',
+        'Seguro de quitação por morte/invalidez',
+        'Atendimento prioritário em assembleia',
+        'Possibilidade de dois lances na mesma assembleia',
+      ],
+      priceBadge: 'R$ 2.890/MÊS',
+      priceCaption: 'Pagamento mensal sem juros',
+    },
+  ],
+}
+
+// ============================================================================
+//  Composição dos slides para um theme
+// ============================================================================
+
+function buildAllSlides(themeId: ThemeId): Slide[] {
+  const t = getTheme(themeId)
+  return [
+    buildCapa(t, COVER_CONTENT),
+    buildSobre(t, SOBRE_CONTENT),
+    buildAlinhamento(t, ALINHAMENTO_CONTENT),
+    buildTransicao(t, TRANSICAO_CONTENT),
+    buildFases(t, FASES_CONTENT),
+    buildFeaturesDuplo(t, FEATURES_CONTENT),
+    buildCardsGrid(t, CARDS_GRID_CONTENT),
+    buildPricing(t, PRICING_CONTENT),
+    buildProcessoHorizontal(t, PROCESSO_CONTENT),
+    buildProposta(t, PROPOSTA_CONTENT),
+  ]
+}
+
+// ============================================================================
+//  Customização default
+// ============================================================================
+
+function defaultCustomization(themeId: ThemeId, adminId: string): PresentationCustomization {
+  return {
+    theme_id: themeId,
+    admin_id: adminId,
+    primary_override: null,
+    secondary_override: null,
+    dark_override: null,
+    company_logo_url: null,
+    seller_photo_url: null,
+    company_name: 'Sua Empresa',
+    seller_name: 'Seu Nome',
+    seller_phone: '(11) 99999-9999',
+    seller_email: 'voce@empresa.com',
+    font: 'inter',  // legacy — themes drive a tipografia em runtime
+    transition: 'slide',
+    animation_speed: 1,
+  }
+}
+
+// ============================================================================
+//  Definição dos 8 templates
+// ============================================================================
+
+interface TemplateSeed {
+  themeId: ThemeId
+  name: string
+  description: string
+  category: TemplateCategory
+  defaultAdmin: string
+  transition: PresentationCustomization['transition']
+}
+
+export const TEMPLATE_SEEDS: TemplateSeed[] = [
   {
-    name: 'Proposta Imóvel',
-    description: 'Ideal para apresentações de consórcio imobiliário',
+    themeId: 'teal-terminal',
+    name: 'Teal Terminal',
+    description: 'Tech-forward, futurista. Verde-petróleo profundo com ciano vibrante.',
+    category: 'universal',
+    defaultAdmin: 'custom',
+    transition: 'slide',
+  },
+  {
+    themeId: 'onyx-gold',
+    name: 'Onyx & Gold',
+    description: 'Discreto e sofisticado. Preto onyx com filete dourado — para imóvel alto padrão.',
     category: 'imovel',
-    animation_style: 'slide' as const,
-    sort_order: 1,
-    theme: defaultTheme,
-    slides: [
-      makeSlide('s1', 'cover', 'Capa', [field('client_name', 'Nome do cliente', 'João Silva', true), field('subtitle', 'Subtítulo', 'Proposta de Consórcio Imobiliário')], 'centered', 'accent'),
-      makeSlide('s2', 'problem', 'O sonho da casa própria', [textareaField('problem_text', 'Texto do problema', 'Financiar um imóvel custa o dobro do valor...')], 'split'),
-      makeSlide('s3', 'solution', 'Por que consórcio?', [field('benefit1', 'Benefício 1', 'Sem juros abusivos'), field('benefit2', 'Benefício 2', 'Parcelas fixas e acessíveis'), field('benefit3', 'Benefício 3', 'Liberdade para escolher o imóvel')], 'cards'),
-      makeSlide('s4', 'comparison', 'Consórcio vs Financiamento', [currencyField('financiamento_total', 'Custo total financiamento'), currencyField('consorcio_total', 'Custo total consórcio')], 'split'),
-      makeSlide('s5', 'numbers', 'Seu plano personalizado', [currencyField('credit_value', 'Valor do crédito'), currencyField('monthly_payment', 'Parcela mensal'), field('total_months', 'Prazo (meses)', '180')], 'cards'),
-      makeSlide('s6', 'timeline', 'Como funciona a contemplação', [field('step1', 'Passo 1', 'Adesão ao grupo'), field('step2', 'Passo 2', 'Assembleias mensais'), field('step3', 'Passo 3', 'Contemplação e uso da carta')], 'full'),
-      makeSlide('s7', 'about', 'Sobre nós', [field('company_name', 'Nome da empresa', 'Minha Empresa'), textareaField('about_text', 'Texto sobre a empresa', 'Somos especialistas em consórcio...')], 'split'),
-      makeSlide('s8', 'cta', 'Próximos passos', [field('cta_text', 'Chamada para ação', 'Vamos começar sua jornada!'), field('phone', 'WhatsApp', '(11) 99999-9999'), field('email', 'Email', 'contato@empresa.com')], 'centered', 'accent'),
-    ] as Slide[],
+    defaultAdmin: 'custom',
+    transition: 'fade',
   },
   {
-    name: 'Proposta Auto Premium',
-    description: 'Para consórcio de veículos de alto padrão',
+    themeId: 'cobalt-capital',
+    name: 'Cobalt Capital',
+    description: 'Terminal de trading. Navy com azul elétrico e dados em mono — para investidor.',
+    category: 'investimento',
+    defaultAdmin: 'porto',
+    transition: 'slide',
+  },
+  {
+    themeId: 'carbon-crimson',
+    name: 'Carbon Crimson',
+    description: 'Pista de corrida. Carbono puro com vermelho racing — para auto premium.',
     category: 'auto',
-    animation_style: 'zoom' as const,
-    sort_order: 2,
-    theme: { ...defaultTheme, accent_color: '#3B82F6' },
-    slides: [
-      makeSlide('s1', 'cover', 'Capa', [field('client_name', 'Nome do cliente', 'Maria Souza', true), field('car_model', 'Modelo do veículo', 'Toyota Corolla')], 'centered', 'accent'),
-      makeSlide('s2', 'problem', 'Liberdade de escolher', [textareaField('text', 'Texto', 'Com consórcio você escolhe o veículo que quiser...')], 'split'),
-      makeSlide('s3', 'comparison', 'Custo real da compra', [currencyField('financing_cost', 'Custo financiamento'), currencyField('consortium_cost', 'Custo consórcio')], 'cards'),
-      makeSlide('s4', 'numbers', 'Seu plano de veículo', [currencyField('credit_value', 'Valor do crédito'), currencyField('monthly_payment', 'Parcela mensal'), field('months', 'Meses', '60')], 'cards'),
-      makeSlide('s5', 'solution', 'Simulação de lance', [currencyField('lance_value', 'Lance estimado'), field('lance_pct', 'Percentual do lance', '20%'), textareaField('obs', 'Observações', '')], 'split'),
-      makeSlide('s6', 'about', 'Por que nos escolher', [field('diff1', 'Diferencial 1', 'Assessoria completa'), field('diff2', 'Diferencial 2', 'Melhor custo-benefício'), field('diff3', 'Diferencial 3', 'Suporte pós-venda')], 'cards'),
-      makeSlide('s7', 'cta', 'Vamos fechar?', [field('cta_text', 'Chamada', 'Seu novo veículo está a um passo!'), field('phone', 'WhatsApp', '(11) 99999-9999')], 'centered', 'accent'),
-    ] as Slide[],
+    defaultAdmin: 'honda',
+    transition: 'zoom',
   },
   {
-    name: 'Apresentação Institucional',
-    description: 'Apresente sua empresa antes de falar do produto',
-    category: 'universal',
-    animation_style: 'fade' as const,
-    sort_order: 3,
-    theme: defaultTheme,
-    slides: [
-      makeSlide('s1', 'cover', 'Capa', [field('company_name', 'Nome da empresa', 'Minha Empresa', true), field('tagline', 'Tagline', 'Realizando sonhos desde 2010')], 'centered', 'accent'),
-      makeSlide('s2', 'about', 'Nossa história', [textareaField('history', 'História', 'Fundada em 2010, somos referência em...')], 'split'),
-      makeSlide('s3', 'numbers', 'Nossos números', [field('clients', 'Clientes atendidos', '500+'), field('years', 'Anos de mercado', '14'), field('satisfaction', 'Satisfação', '98%')], 'cards'),
-      makeSlide('s4', 'solution', 'O que fazemos', [field('service1', 'Serviço 1', 'Consórcio Imobiliário'), field('service2', 'Serviço 2', 'Consórcio de Veículos'), field('service3', 'Serviço 3', 'Assessoria completa')], 'cards'),
-      makeSlide('s5', 'problem', 'Por que consórcio', [textareaField('why', 'Por que escolher', 'Consórcio é a forma mais inteligente de realizar seu sonho...')], 'split'),
-      makeSlide('s6', 'testimonial', 'Cases de sucesso', [field('client', 'Nome do cliente', 'Pedro Costa'), textareaField('testimonial', 'Depoimento', '"Realizei o sonho da casa própria com muito menos custo..."')], 'centered'),
-      makeSlide('s7', 'cta', 'Fale conosco', [field('phone', 'WhatsApp', '(11) 99999-9999'), field('email', 'Email', 'contato@empresa.com'), field('site', 'Site', 'www.empresa.com')], 'centered', 'accent'),
-    ] as Slide[],
-  },
-  {
-    name: 'Proposta Rápida',
-    description: 'Versão compacta para reuniões curtas',
-    category: 'universal',
-    animation_style: 'slide' as const,
-    sort_order: 4,
-    theme: defaultTheme,
-    slides: [
-      makeSlide('s1', 'cover', 'Capa', [field('client_name', 'Nome do cliente', 'Cliente', true), field('company', 'Empresa', 'Minha Empresa')], 'centered', 'accent'),
-      makeSlide('s2', 'problem', 'Seu objetivo', [textareaField('goal', 'Objetivo do cliente', 'Adquirir imóvel / veículo / serviço...')], 'centered'),
-      makeSlide('s3', 'numbers', 'Nossa solução', [currencyField('credit', 'Crédito'), currencyField('parcela', 'Parcela'), field('prazo', 'Prazo', '180 meses')], 'cards'),
-      makeSlide('s4', 'timeline', 'Próximos passos', [field('step1', 'Passo 1', 'Assinatura do contrato'), field('step2', 'Passo 2', 'Início das assembleias'), field('step3', 'Passo 3', 'Contemplação')], 'full'),
-      makeSlide('s5', 'cta', 'Vamos começar!', [field('phone', 'WhatsApp', '(11) 99999-9999')], 'centered', 'accent'),
-    ] as Slide[],
-  },
-  {
-    name: 'Conquiste seu Imóvel',
-    description: 'Foco emocional e aspiracional',
+    themeId: 'forest-emerald',
+    name: 'Forest Emerald',
+    description: 'Verde escuro orgânico com esmeralda — para imóvel familiar / herança.',
     category: 'imovel',
-    animation_style: 'flip' as const,
-    sort_order: 5,
-    theme: { ...defaultTheme, accent_color: '#8B5CF6' },
-    slides: [
-      makeSlide('s1', 'cover', 'Capa Cinematográfica', [field('client_name', 'Nome', 'Ana Paula', true), field('dream', 'O sonho', 'A casa dos seus sonhos')], 'full', 'accent'),
-      makeSlide('s2', 'testimonial', 'Quem já realizou', [field('name', 'Nome', 'Roberto Lima'), textareaField('story', 'História', '"Há 2 anos atrás eu não acreditava que seria possível..."')], 'split'),
-      makeSlide('s3', 'problem', 'Por que agora é o momento', [textareaField('reason', 'Motivo', 'O mercado imobiliário valoriza 12% ao ano...')], 'centered'),
-      makeSlide('s4', 'numbers', 'Seu plano', [currencyField('credit', 'Valor do crédito'), currencyField('parcela', 'Parcela mensal'), field('prazo', 'Prazo', '180 meses')], 'cards'),
-      makeSlide('s5', 'solution', 'Diferenciais', [field('d1', 'Diferencial 1', 'Sem juros'), field('d2', 'Diferencial 2', 'Carta de crédito valorizada'), field('d3', 'Diferencial 3', 'Flexibilidade total')], 'cards'),
-      makeSlide('s6', 'cta', 'Realize seu sonho', [field('cta', 'Chamada', 'A casa própria está mais perto do que você imagina!'), field('phone', 'WhatsApp', '(11) 99999-9999')], 'centered', 'accent'),
-    ] as Slide[],
+    defaultAdmin: 'embracon',
+    transition: 'reveal',
   },
   {
-    name: 'Auto Acessível',
-    description: 'Foco em custo baixo e acessibilidade',
-    category: 'auto',
-    animation_style: 'slide' as const,
-    sort_order: 6,
-    theme: { ...defaultTheme, accent_color: '#F59E0B' },
-    slides: [
-      makeSlide('s1', 'cover', 'Capa', [field('client_name', 'Nome', 'Carlos'), field('vehicle', 'Veículo desejado', 'Moto / Carro')], 'centered', 'accent'),
-      makeSlide('s2', 'problem', 'O problema do financiamento', [textareaField('problem', 'Problema', 'No financiamento você paga até 100% a mais pelo veículo...')], 'split'),
-      makeSlide('s3', 'solution', 'A solução consórcio', [field('b1', 'Benefício 1', 'Parcela acessível'), field('b2', 'Benefício 2', 'Zero juros'), field('b3', 'Benefício 3', 'Escolha livre do veículo')], 'cards'),
-      makeSlide('s4', 'numbers', 'Seu plano', [currencyField('credit', 'Crédito'), currencyField('parcela', 'Parcela (cabe no bolso!)'), field('meses', 'Meses', '60')], 'cards'),
-      makeSlide('s5', 'comparison', 'Compare você mesmo', [currencyField('fin_total', 'Total financiamento'), currencyField('con_total', 'Total consórcio')], 'split'),
-      makeSlide('s6', 'cta', 'Seu veículo novo te espera', [field('phone', 'WhatsApp', '(11) 99999-9999')], 'centered', 'accent'),
-    ] as Slide[],
-  },
-  {
-    name: 'Proposta Investimento',
-    description: 'Consórcio como estratégia de patrimônio',
-    category: 'universal',
-    animation_style: 'fade' as const,
-    sort_order: 7,
-    theme: { ...defaultTheme, accent_color: '#10B981' },
-    slides: [
-      makeSlide('s1', 'cover', 'Capa', [field('client_name', 'Nome', 'Investidor'), field('subtitle', 'Subtítulo', 'Construindo patrimônio com inteligência')], 'centered', 'accent'),
-      makeSlide('s2', 'problem', 'Consórcio como investimento', [textareaField('text', 'Argumento', 'Enquanto outros perdem dinheiro com juros, você constrói patrimônio...')], 'split'),
-      makeSlide('s3', 'comparison', 'Vs outros investimentos', [field('cdi', 'CDI (12 meses)', '11% a.a.'), field('consorcio', 'Consórcio (valorização)', '15% a.a. no imóvel')], 'cards'),
-      makeSlide('s4', 'numbers', 'Simulação de retorno', [currencyField('invested', 'Valor investido'), currencyField('patrimony', 'Patrimônio estimado em 5 anos'), field('roi', 'Retorno estimado', '35%')], 'cards'),
-      makeSlide('s5', 'timeline', 'Seu plano', [field('s1', 'Fase 1', 'Adesão e parcelas'), field('s2', 'Fase 2', 'Contemplação'), field('s3', 'Fase 3', 'Valorização do bem')], 'full'),
-      makeSlide('s6', 'cta', 'Comece a investir hoje', [field('cta', 'Chamada', 'Seu patrimônio começa agora!'), field('phone', 'WhatsApp', '(11) 99999-9999')], 'centered', 'accent'),
-    ] as Slide[],
-  },
-  {
-    name: 'Proposta Serviços',
-    description: 'Para viagem, cirurgia, reforma e outros serviços',
+    themeId: 'aurora-violet',
+    name: 'Aurora Violet',
+    description: 'Aurora boreal. Roxo profundo com violeta neon — para tech jovem / lifestyle.',
     category: 'servicos',
-    animation_style: 'zoom' as const,
-    sort_order: 8,
-    theme: { ...defaultTheme, accent_color: '#EC4899' },
-    slides: [
-      makeSlide('s1', 'cover', 'Capa', [field('client_name', 'Nome', 'Cliente'), field('service', 'Projeto desejado', 'Viagem / Cirurgia / Reforma')], 'centered', 'accent'),
-      makeSlide('s2', 'problem', 'Realize seu projeto', [textareaField('dream', 'Sonho do cliente', 'Você merece realizar esse projeto sem comprometer seu orçamento...')], 'split'),
-      makeSlide('s3', 'solution', 'Como funciona', [field('h1', 'Como 1', 'Escolha o valor do crédito'), field('h2', 'Como 2', 'Pague parcelas acessíveis'), field('h3', 'Como 3', 'Use a carta quando contemplado')], 'cards'),
-      makeSlide('s4', 'numbers', 'Seu plano personalizado', [currencyField('credit', 'Valor do crédito'), currencyField('parcela', 'Parcela mensal'), field('prazo', 'Prazo', '36 meses')], 'cards'),
-      makeSlide('s5', 'cta', 'Próximos passos', [field('cta', 'Chamada', 'Seu projeto começa hoje!'), field('phone', 'WhatsApp', '(11) 99999-9999')], 'centered', 'accent'),
-    ] as Slide[],
+    defaultAdmin: 'custom',
+    transition: 'fade',
+  },
+  {
+    themeId: 'bronze-heritage',
+    name: 'Bronze Heritage',
+    description: 'Marrom profundo com bronze art-deco — tradicional, "60 anos de história".',
+    category: 'universal',
+    defaultAdmin: 'custom',
+    transition: 'fade',
+  },
+  {
+    themeId: 'platinum-mono',
+    name: 'Platinum Mono',
+    description: 'Editorial minimalista. Preto puro com platina, sem cor, tipografia gigante.',
+    category: 'universal',
+    defaultAdmin: 'custom',
+    transition: 'fade',
   },
 ]
+
+// ============================================================================
+//  Templates exportados
+// ============================================================================
+
+type StoredTemplate = Omit<PresentationTemplate, 'id'>
+
+export const TEMPLATES: StoredTemplate[] = TEMPLATE_SEEDS.map((seed, i) => {
+  const customization = defaultCustomization(seed.themeId, seed.defaultAdmin)
+  customization.transition = seed.transition
+
+  return {
+    name: seed.name,
+    description: seed.description,
+    category: seed.category,
+    thumbnail_url: null,
+    slides: buildAllSlides(seed.themeId),
+    default_customization: customization,
+    is_active: true,
+    sort_order: i + 1,
+    schema_version: 2 as const,
+  }
+})
