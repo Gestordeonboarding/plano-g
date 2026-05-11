@@ -277,36 +277,64 @@ interface OwnerResolution {
 }
 
 async function resolveOwner(instanceId: string, connectedPhone: string | null): Promise<OwnerResolution> {
-  // Tenta 1: zapi_instance_id em users
-  if (instanceId) {
-    const { data: u } = await supabaseAdmin
+  // Normaliza pra evitar problemas com espaços ou casos diferentes
+  const cleanedInstanceId = instanceId.trim()
+  const cleanedPhone = connectedPhone?.trim() ?? null
+
+  console.log('[whatsapp-webhook] resolveOwner inputs:', {
+    instanceIdLen: cleanedInstanceId.length,
+    instanceIdBytes: Array.from(cleanedInstanceId).slice(0, 30).map((c) => c.charCodeAt(0)).join(','),
+    instanceIdValue: JSON.stringify(cleanedInstanceId),
+    connectedPhone: cleanedPhone,
+  })
+
+  // Tenta 1: zapi_instance_id em users (match exato)
+  if (cleanedInstanceId) {
+    const { data: u, error: uErr } = await supabaseAdmin
       .from('users')
-      .select('id, tenant_id')
-      .eq('zapi_instance_id', instanceId)
-      .single()
+      .select('id, tenant_id, email, zapi_instance_id')
+      .eq('zapi_instance_id', cleanedInstanceId)
+      .maybeSingle()
+    console.log('[whatsapp-webhook] busca em users (exact):', {
+      found: !!u,
+      error: uErr?.message,
+      row: u,
+    })
     if (u) {
       const x = u as { id: string; tenant_id: string }
-      return { tenantId: x.tenant_id, userId: x.id, via: 'users.zapi_instance_id' }
+      return { tenantId: x.tenant_id, userId: x.id, via: 'users.zapi_instance_id (exact)' }
+    }
+
+    // Tenta 1b: busca case-insensitive (ilike) — pega valores com case diferente
+    const { data: uIlike } = await supabaseAdmin
+      .from('users')
+      .select('id, tenant_id, email, zapi_instance_id')
+      .ilike('zapi_instance_id', cleanedInstanceId)
+      .maybeSingle()
+    if (uIlike) {
+      const x = uIlike as { id: string; tenant_id: string }
+      console.log('[whatsapp-webhook] match via ilike (case-insensitive):', x)
+      return { tenantId: x.tenant_id, userId: x.id, via: 'users.zapi_instance_id (ilike)' }
     }
 
     // Tenta 2: zapi_instance_id em tenants (legado)
     const { data: t } = await supabaseAdmin
       .from('tenants')
       .select('id')
-      .eq('zapi_instance_id', instanceId)
-      .single()
+      .eq('zapi_instance_id', cleanedInstanceId)
+      .maybeSingle()
     if (t) {
       return { tenantId: (t as { id: string }).id, userId: null, via: 'tenants.zapi_instance_id' }
     }
   }
 
   // Tenta 3: whatsapp_phone em users (fallback quando instanceId não bate)
-  if (connectedPhone) {
+  if (cleanedPhone) {
     const { data: u } = await supabaseAdmin
       .from('users')
       .select('id, tenant_id')
-      .eq('whatsapp_phone', connectedPhone)
-      .single()
+      .eq('whatsapp_phone', cleanedPhone)
+      .maybeSingle()
     if (u) {
       const x = u as { id: string; tenant_id: string }
       return { tenantId: x.tenant_id, userId: x.id, via: 'users.whatsapp_phone' }
