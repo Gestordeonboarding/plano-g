@@ -44,10 +44,28 @@ function extractMessage(message?: EvolutionMessage): string {
 
 export async function POST(request: NextRequest) {
   try {
-    const payload = await request.json() as EvolutionPayload
-    const { event, instance: instanceName, data } = payload
+    const rawPayload = await request.json() as unknown
+    console.log('[WhatsApp webhook] raw payload:', JSON.stringify(rawPayload))
 
-    if (!instanceName) return NextResponse.json({ ok: true })
+    const payload = rawPayload as EvolutionPayload
+    const rawInstance = (payload as unknown as { instance?: unknown }).instance
+
+    // Evolution API tem 2 formatos: instance como string OU instance como objeto
+    // { instanceName, instanceId, integration, ... }
+    const instanceName: string | undefined =
+      typeof rawInstance === 'string'
+        ? rawInstance
+        : (rawInstance as { instanceName?: string; instance_name?: string } | null)?.instanceName
+        ?? (rawInstance as { instance_name?: string } | null)?.instance_name
+
+    const { event, data } = payload
+
+    console.log('[WhatsApp webhook] event:', event, 'instanceName:', instanceName)
+
+    if (!instanceName) {
+      console.warn('[WhatsApp webhook] instanceName ausente — early return')
+      return NextResponse.json({ ok: true })
+    }
 
     // Identifica dono da instância — primeiro busca por usuário, depois por tenant (legado)
     let tenantId: string | null = null
@@ -63,17 +81,25 @@ export async function POST(request: NextRequest) {
       const u = userData as { id: string; tenant_id: string }
       tenantId = u.tenant_id
       userId = u.id
+      console.log('[WhatsApp webhook] matched user:', userId, 'tenant:', tenantId)
     } else {
+      console.log('[WhatsApp webhook] no user matched zapi_instance_id =', instanceName, '— tentando tenants...')
       // Fallback: tenant-level (legado)
       const { data: tenantData } = await supabaseAdmin
         .from('tenants')
         .select('id')
         .eq('zapi_instance_id', instanceName)
         .single()
-      if (tenantData) tenantId = (tenantData as { id: string }).id
+      if (tenantData) {
+        tenantId = (tenantData as { id: string }).id
+        console.log('[WhatsApp webhook] matched tenant:', tenantId)
+      }
     }
 
-    if (!tenantId) return NextResponse.json({ ok: true })
+    if (!tenantId) {
+      console.warn('[WhatsApp webhook] nenhum usuário/tenant encontrado para instance', instanceName, '— early return')
+      return NextResponse.json({ ok: true })
+    }
 
     // ── Connection state update ──────────────────────────────────────────────
     if (event === 'connection.update') {
