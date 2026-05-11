@@ -7,8 +7,36 @@ const supabaseAdmin = createAdmin(
   { auth: { autoRefreshToken: false, persistSession: false } }
 )
 
-// Evolution API webhook payload types
-type EvolutionMessage = {
+// ============================================================================
+//  Tipos — payload Z-API e payload Evolution
+// ============================================================================
+
+// Z-API: cada mensagem chega como ReceivedCallback no topo do payload
+interface ZapiPayload {
+  type?: string                    // "ReceivedCallback" | "MessageStatusCallback" | etc
+  instanceId?: string              // ID da instância Z-API
+  connectedPhone?: string          // telefone conectado (dono da instância)
+  phone?: string                   // telefone do remetente
+  messageId?: string
+  fromMe?: boolean
+  isGroup?: boolean
+  isNewsletter?: boolean
+  isStatusReply?: boolean
+  broadcast?: boolean
+  chatName?: string
+  senderName?: string
+  momment?: number                 // timestamp (typo do Z-API)
+  // Conteúdo (um destes vem preenchido conforme o tipo da mensagem)
+  text?: { message?: string }
+  image?: { caption?: string; imageUrl?: string }
+  video?: { caption?: string; videoUrl?: string }
+  audio?: { audioUrl?: string }
+  document?: { title?: string; documentUrl?: string }
+  sticker?: { stickerUrl?: string }
+}
+
+// Evolution: estrutura aninhada em event/data/key
+interface EvolutionMessage {
   conversation?: string
   extendedTextMessage?: { text?: string }
   imageMessage?: { caption?: string }
@@ -17,9 +45,9 @@ type EvolutionMessage = {
   audioMessage?: Record<string, unknown>
 }
 
-type EvolutionPayload = {
-  event: string
-  instance: string
+interface EvolutionPayload {
+  event?: string
+  instance?: string | { instanceName?: string; instance_name?: string }
   data?: {
     key?: { remoteJid?: string; fromMe?: boolean; id?: string }
     pushName?: string
@@ -29,207 +57,397 @@ type EvolutionPayload = {
   }
 }
 
-function extractMessage(message?: EvolutionMessage): string {
-  if (!message) return ''
-  return (
-    message.conversation ||
-    message.extendedTextMessage?.text ||
-    message.imageMessage?.caption ||
-    message.videoMessage?.caption ||
-    message.documentMessage?.title ||
-    (message.audioMessage ? '🎵 Áudio' : '') ||
-    ''
-  )
+// ============================================================================
+//  Detecção de formato + normalização
+// ============================================================================
+
+type Source = 'zapi' | 'evolution' | 'unknown'
+
+interface Normalized {
+  source: Source
+  /** ID da instância (pra casar com users.zapi_instance_id) */
+  instanceId: string
+  /** Telefone do remetente (limpo, só dígitos) */
+  senderPhone: string | null
+  /** Nome do contato (pushName / senderName / chatName) */
+  contactName: string | null
+  /** Texto extraído da mensagem (ou descrição da mídia) */
+  message: string
+  /** É mensagem incoming válida (não fromMe, não newsletter, não grupo, não status)? */
+  isValidIncoming: boolean
+  /** É evento de conexão estabelecida? */
+  isConnectionOpen: boolean
+  /** Telefone do dono da instância (pra connection events) */
+  connectedPhone: string | null
+  /** Razão de descarte (debug) */
+  skipReason?: string
 }
+
+function normalizePayload(raw: unknown): Normalized {
+  const p = raw as Record<string, unknown>
+
+  // ── Z-API: tem `type` no topo (ReceivedCallback, ConnectedCallback, etc.) ──
+  if (typeof p.type === 'string' && typeof p.instanceId === 'string') {
+    const z = raw as ZapiPayload
+    const instanceId = z.instanceId ?? ''
+    const connectedPhone = z.connectedPhone?.replace(/\D/g, '') ?? null
+
+    // Connection events
+    if (z.type === 'ConnectedCallback') {
+      return {
+        source: 'zapi',
+        instanceId,
+        senderPhone: null,
+        contactName: null,
+        message: '',
+        isValidIncoming: false,
+        isConnectionOpen: true,
+        connectedPhone,
+      }
+    }
+
+    // Não é mensagem? Ignora
+    if (z.type !== 'ReceivedCallback') {
+      return {
+        source: 'zapi',
+        instanceId,
+        senderPhone: null,
+        contactName: null,
+        message: '',
+        isValidIncoming: false,
+        isConnectionOpen: false,
+        connectedPhone,
+        skipReason: `type ${z.type} ignorado`,
+      }
+    }
+
+    // Filtros: fromMe, newsletter, grupo, status reply, broadcast
+    if (z.fromMe) {
+      return { source: 'zapi', instanceId, senderPhone: null, contactName: null, message: '', isValidIncoming: false, isConnectionOpen: false, connectedPhone, skipReason: 'fromMe' }
+    }
+    if (z.isNewsletter) {
+      return { source: 'zapi', instanceId, senderPhone: null, contactName: null, message: '', isValidIncoming: false, isConnectionOpen: false, connectedPhone, skipReason: 'newsletter' }
+    }
+    if (z.isGroup) {
+      return { source: 'zapi', instanceId, senderPhone: null, contactName: null, message: '', isValidIncoming: false, isConnectionOpen: false, connectedPhone, skipReason: 'grupo' }
+    }
+    if (z.isStatusReply || z.broadcast) {
+      return { source: 'zapi', instanceId, senderPhone: null, contactName: null, message: '', isValidIncoming: false, isConnectionOpen: false, connectedPhone, skipReason: 'status/broadcast' }
+    }
+
+    const rawPhone = z.phone ?? ''
+    // Ignora se phone contém @ (newsletters, grupos ainda escapados)
+    if (rawPhone.includes('@')) {
+      return { source: 'zapi', instanceId, senderPhone: null, contactName: null, message: '', isValidIncoming: false, isConnectionOpen: false, connectedPhone, skipReason: 'phone com @ (canal/grupo)' }
+    }
+
+    const senderPhone = rawPhone.replace(/\D/g, '')
+    if (!senderPhone) {
+      return { source: 'zapi', instanceId, senderPhone: null, contactName: null, message: '', isValidIncoming: false, isConnectionOpen: false, connectedPhone, skipReason: 'phone vazio' }
+    }
+
+    // Extrai conteúdo: prioridade pra texto, depois caption, depois marker de mídia
+    let msg =
+      z.text?.message ||
+      z.image?.caption ||
+      z.video?.caption ||
+      z.document?.title ||
+      ''
+    if (!msg) {
+      if (z.image) msg = '📷 Imagem'
+      else if (z.video) msg = '🎥 Vídeo'
+      else if (z.audio) msg = '🎵 Áudio'
+      else if (z.document) msg = '📎 Documento'
+      else if (z.sticker) msg = '🎟️ Figurinha'
+      else msg = '(mensagem)'
+    }
+
+    const contactName = z.senderName || z.chatName || senderPhone
+
+    return {
+      source: 'zapi',
+      instanceId,
+      senderPhone,
+      contactName,
+      message: msg,
+      isValidIncoming: true,
+      isConnectionOpen: false,
+      connectedPhone,
+    }
+  }
+
+  // ── Evolution: tem `event` e `instance` no topo ──────────────────────────
+  if (typeof p.event === 'string') {
+    const e = raw as EvolutionPayload
+    const rawInstance = e.instance
+    const instanceId =
+      typeof rawInstance === 'string'
+        ? rawInstance
+        : (rawInstance?.instanceName ?? rawInstance?.instance_name ?? '')
+
+    // Connection update
+    if (e.event === 'connection.update') {
+      return {
+        source: 'evolution',
+        instanceId,
+        senderPhone: null,
+        contactName: null,
+        message: '',
+        isValidIncoming: false,
+        isConnectionOpen: e.data?.state === 'open',
+        connectedPhone: null,
+      }
+    }
+
+    // Não é mensagem
+    if (e.event !== 'messages.upsert') {
+      return {
+        source: 'evolution',
+        instanceId,
+        senderPhone: null,
+        contactName: null,
+        message: '',
+        isValidIncoming: false,
+        isConnectionOpen: false,
+        connectedPhone: null,
+        skipReason: `event ${e.event} ignorado`,
+      }
+    }
+
+    // Filtros
+    if (e.data?.key?.fromMe) {
+      return { source: 'evolution', instanceId, senderPhone: null, contactName: null, message: '', isValidIncoming: false, isConnectionOpen: false, connectedPhone: null, skipReason: 'fromMe' }
+    }
+    const remoteJid = e.data?.key?.remoteJid ?? ''
+    if (!remoteJid || remoteJid.endsWith('@g.us') || remoteJid.endsWith('@newsletter')) {
+      return { source: 'evolution', instanceId, senderPhone: null, contactName: null, message: '', isValidIncoming: false, isConnectionOpen: false, connectedPhone: null, skipReason: 'grupo/newsletter' }
+    }
+
+    const senderPhone = remoteJid.replace('@s.whatsapp.net', '').replace(/\D/g, '')
+    const m = e.data?.message
+    let msg =
+      m?.conversation ||
+      m?.extendedTextMessage?.text ||
+      m?.imageMessage?.caption ||
+      m?.videoMessage?.caption ||
+      m?.documentMessage?.title ||
+      ''
+    if (!msg) {
+      if (m?.imageMessage) msg = '📷 Imagem'
+      else if (m?.videoMessage) msg = '🎥 Vídeo'
+      else if (m?.audioMessage) msg = '🎵 Áudio'
+      else if (m?.documentMessage) msg = '📎 Documento'
+      else msg = '(mensagem)'
+    }
+
+    return {
+      source: 'evolution',
+      instanceId,
+      senderPhone,
+      contactName: e.data?.pushName ?? senderPhone,
+      message: msg,
+      isValidIncoming: true,
+      isConnectionOpen: false,
+      connectedPhone: null,
+    }
+  }
+
+  // Formato desconhecido
+  return {
+    source: 'unknown',
+    instanceId: '',
+    senderPhone: null,
+    contactName: null,
+    message: '',
+    isValidIncoming: false,
+    isConnectionOpen: false,
+    connectedPhone: null,
+    skipReason: 'formato desconhecido',
+  }
+}
+
+// ============================================================================
+//  Resolução do dono (user / tenant) — tenta múltiplos critérios
+// ============================================================================
+
+interface OwnerResolution {
+  tenantId: string | null
+  userId: string | null
+  via: string  // como achou (debug)
+}
+
+async function resolveOwner(instanceId: string, connectedPhone: string | null): Promise<OwnerResolution> {
+  // Tenta 1: zapi_instance_id em users
+  if (instanceId) {
+    const { data: u } = await supabaseAdmin
+      .from('users')
+      .select('id, tenant_id')
+      .eq('zapi_instance_id', instanceId)
+      .single()
+    if (u) {
+      const x = u as { id: string; tenant_id: string }
+      return { tenantId: x.tenant_id, userId: x.id, via: 'users.zapi_instance_id' }
+    }
+
+    // Tenta 2: zapi_instance_id em tenants (legado)
+    const { data: t } = await supabaseAdmin
+      .from('tenants')
+      .select('id')
+      .eq('zapi_instance_id', instanceId)
+      .single()
+    if (t) {
+      return { tenantId: (t as { id: string }).id, userId: null, via: 'tenants.zapi_instance_id' }
+    }
+  }
+
+  // Tenta 3: whatsapp_phone em users (fallback quando instanceId não bate)
+  if (connectedPhone) {
+    const { data: u } = await supabaseAdmin
+      .from('users')
+      .select('id, tenant_id')
+      .eq('whatsapp_phone', connectedPhone)
+      .single()
+    if (u) {
+      const x = u as { id: string; tenant_id: string }
+      return { tenantId: x.tenant_id, userId: x.id, via: 'users.whatsapp_phone' }
+    }
+  }
+
+  return { tenantId: null, userId: null, via: 'não encontrado' }
+}
+
+// ============================================================================
+//  Handler
+// ============================================================================
 
 export async function POST(request: NextRequest) {
   try {
-    const rawPayload = await request.json() as unknown
-    console.log('[WhatsApp webhook] raw payload:', JSON.stringify(rawPayload))
+    const raw = await request.json() as unknown
+    const norm = normalizePayload(raw)
 
-    const payload = rawPayload as EvolutionPayload
-    const rawInstance = (payload as unknown as { instance?: unknown }).instance
+    console.log('[whatsapp-webhook]', {
+      source: norm.source,
+      instanceId: norm.instanceId,
+      senderPhone: norm.senderPhone,
+      message: norm.message,
+      isValidIncoming: norm.isValidIncoming,
+      isConnectionOpen: norm.isConnectionOpen,
+      skipReason: norm.skipReason,
+    })
 
-    // Evolution API tem 2 formatos: instance como string OU instance como objeto
-    // { instanceName, instanceId, integration, ... }
-    const instanceName: string | undefined =
-      typeof rawInstance === 'string'
-        ? rawInstance
-        : (rawInstance as { instanceName?: string; instance_name?: string } | null)?.instanceName
-        ?? (rawInstance as { instance_name?: string } | null)?.instance_name
-
-    const { event, data } = payload
-
-    console.log('[WhatsApp webhook] event:', event, 'instanceName:', instanceName)
-
-    if (!instanceName) {
-      console.warn('[WhatsApp webhook] instanceName ausente — early return')
+    // Resolve dono
+    const owner = await resolveOwner(norm.instanceId, norm.connectedPhone)
+    if (!owner.tenantId) {
+      console.warn('[whatsapp-webhook] dono não identificado', {
+        instanceId: norm.instanceId,
+        connectedPhone: norm.connectedPhone,
+      })
       return NextResponse.json({ ok: true })
     }
 
-    // Identifica dono da instância — primeiro busca por usuário, depois por tenant (legado)
-    let tenantId: string | null = null
-    let userId: string | null = null
+    console.log('[whatsapp-webhook] dono:', { via: owner.via, userId: owner.userId, tenantId: owner.tenantId })
 
-    const { data: userData } = await supabaseAdmin
-      .from('users')
-      .select('id, tenant_id')
-      .eq('zapi_instance_id', instanceName)
+    // ── Connection event: atualiza telefone/nome conectado ──────────────────
+    if (norm.isConnectionOpen && norm.connectedPhone) {
+      if (owner.userId) {
+        await supabaseAdmin
+          .from('users')
+          .update({ whatsapp_phone: norm.connectedPhone })
+          .eq('id', owner.userId)
+      } else {
+        await supabaseAdmin
+          .from('tenants')
+          .update({ whatsapp_phone: norm.connectedPhone })
+          .eq('id', owner.tenantId)
+      }
+      return NextResponse.json({ ok: true })
+    }
+
+    // ── Mensagem válida: salva conversa + mensagem ──────────────────────────
+    if (!norm.isValidIncoming || !norm.senderPhone) {
+      return NextResponse.json({ ok: true })
+    }
+
+    // 1. Acha ou cria conversa
+    const { data: existingConv } = await supabaseAdmin
+      .from('whatsapp_conversations')
+      .select('id, unread_count')
+      .eq('tenant_id', owner.tenantId)
+      .eq('contact_phone', norm.senderPhone)
       .single()
 
-    if (userData) {
-      const u = userData as { id: string; tenant_id: string }
-      tenantId = u.tenant_id
-      userId = u.id
-      console.log('[WhatsApp webhook] matched user:', userId, 'tenant:', tenantId)
-    } else {
-      console.log('[WhatsApp webhook] no user matched zapi_instance_id =', instanceName, '— tentando tenants...')
-      // Fallback: tenant-level (legado)
-      const { data: tenantData } = await supabaseAdmin
-        .from('tenants')
-        .select('id')
-        .eq('zapi_instance_id', instanceName)
-        .single()
-      if (tenantData) {
-        tenantId = (tenantData as { id: string }).id
-        console.log('[WhatsApp webhook] matched tenant:', tenantId)
-      }
-    }
+    let conversationId: string
 
-    if (!tenantId) {
-      console.warn('[WhatsApp webhook] nenhum usuário/tenant encontrado para instance', instanceName, '— early return')
-      return NextResponse.json({ ok: true })
-    }
-
-    // ── Connection state update ──────────────────────────────────────────────
-    if (event === 'connection.update') {
-      if (data?.state === 'open') {
-        // Busca o número de telefone via Evolution API
-        try {
-          const evolutionUrl = process.env.EVOLUTION_API_URL
-          const evolutionKey = process.env.EVOLUTION_API_KEY
-          if (evolutionUrl && evolutionKey) {
-            const infoRes = await fetch(
-              `${evolutionUrl}/instance/fetchInstances?instanceName=${instanceName}`,
-              { headers: { apikey: evolutionKey } }
-            )
-            if (infoRes.ok) {
-              const infoData = await infoRes.json() as Array<{ owner?: string; profileName?: string }>
-              const instance = Array.isArray(infoData) ? infoData[0] : infoData
-              const owner = (instance as { owner?: string })?.owner
-              const profileName = (instance as { profileName?: string })?.profileName
-              const phone = owner?.replace('@s.whatsapp.net', '').replace(/\D/g, '') || null
-              await supabaseAdmin
-                .from('tenants')
-                .update({
-                  whatsapp_phone: phone,
-                  ...(profileName ? { whatsapp_name: profileName } : {}),
-                })
-                .eq('zapi_instance_id', instanceName)
-            }
-          }
-        } catch (e) {
-          console.error('Error fetching instance info:', e)
-        }
-      }
-      return NextResponse.json({ ok: true })
-    }
-
-    // ── Incoming message ─────────────────────────────────────────────────────
-    if (event === 'messages.upsert') {
-      // Ignore messages sent by us
-      if (data?.key?.fromMe) return NextResponse.json({ ok: true })
-
-      const remoteJid = data?.key?.remoteJid || ''
-      // remoteJid format: "5511999999999@s.whatsapp.net" or "5511999999999@g.us" (group)
-      if (!remoteJid || remoteJid.endsWith('@g.us')) return NextResponse.json({ ok: true })
-
-      const phone = remoteJid.replace('@s.whatsapp.net', '').replace(/\D/g, '')
-      const contactName = data?.pushName || phone
-      const message = extractMessage(data?.message)
-
-      // 1. Find or create conversation
-      const { data: existingConv } = await supabaseAdmin
+    if (existingConv) {
+      const c = existingConv as { id: string; unread_count: number }
+      conversationId = c.id
+      await supabaseAdmin
         .from('whatsapp_conversations')
-        .select('id, unread_count')
-        .eq('tenant_id', tenantId)
-        .eq('contact_phone', phone)
+        .update({
+          last_message: norm.message || '📎 Mídia',
+          last_message_at: new Date().toISOString(),
+          unread_count: (c.unread_count ?? 0) + 1,
+          contact_name: norm.contactName,
+        })
+        .eq('id', conversationId)
+    } else {
+      // Acha ou cria lead pra esse telefone
+      const { data: existingLead } = await supabaseAdmin
+        .from('leads')
+        .select('id')
+        .eq('tenant_id', owner.tenantId)
+        .eq('phone', norm.senderPhone)
         .single()
 
-      let conversationId: string
+      let leadId: string | null = existingLead ? (existingLead as { id: string }).id : null
 
-      if (existingConv) {
-        const c = existingConv as { id: string; unread_count: number }
-        conversationId = c.id
-        await supabaseAdmin
-          .from('whatsapp_conversations')
-          .update({
-            last_message: message || '📎 Mídia',
-            last_message_at: new Date().toISOString(),
-            unread_count: c.unread_count + 1,
-            contact_name: contactName,
-          })
-          .eq('id', conversationId)
-      } else {
-        // Check/create lead
-        const { data: existingLead } = await supabaseAdmin
+      if (!leadId) {
+        const { data: newLead } = await supabaseAdmin
           .from('leads')
-          .select('id')
-          .eq('tenant_id', tenantId)
-          .eq('phone', phone)
-          .single()
-
-        let leadId: string | null = existingLead ? (existingLead as { id: string }).id : null
-
-        if (!leadId) {
-          const { data: newLead } = await supabaseAdmin
-            .from('leads')
-            .insert({
-              tenant_id: tenantId,
-              full_name: contactName,
-              phone,
-              source: 'whatsapp',
-              status: 'novo',
-              notes: message ? `Primeira mensagem: "${message}"` : null,
-              qualification_score: 0,
-            })
-            .select('id')
-            .single()
-          if (newLead) leadId = (newLead as { id: string }).id
-        }
-
-        const { data: newConv } = await supabaseAdmin
-          .from('whatsapp_conversations')
           .insert({
-            tenant_id: tenantId,
-            ...(userId ? { seller_id: userId } : {}),
-            contact_phone: phone,
-            contact_name: contactName,
-            lead_id: leadId,
-            last_message: message || '📎 Mídia',
-            last_message_at: new Date().toISOString(),
-            unread_count: 1,
+            tenant_id: owner.tenantId,
+            full_name: norm.contactName,
+            phone: norm.senderPhone,
+            source: 'whatsapp',
+            status: 'novo',
+            notes: norm.message ? `Primeira mensagem: "${norm.message}"` : null,
+            qualification_score: 0,
           })
           .select('id')
           .single()
-        conversationId = (newConv as { id: string }).id
+        if (newLead) leadId = (newLead as { id: string }).id
       }
 
-      // 2. Store message
-      if (message) {
-        await supabaseAdmin.from('whatsapp_chat_messages').insert({
-          conversation_id: conversationId,
-          tenant_id: tenantId,
-          direction: 'incoming',
-          content: message,
-          sent_at: new Date().toISOString(),
+      const { data: newConv } = await supabaseAdmin
+        .from('whatsapp_conversations')
+        .insert({
+          tenant_id: owner.tenantId,
+          ...(owner.userId ? { seller_id: owner.userId } : {}),
+          contact_phone: norm.senderPhone,
+          contact_name: norm.contactName,
+          lead_id: leadId,
+          last_message: norm.message || '📎 Mídia',
+          last_message_at: new Date().toISOString(),
+          unread_count: 1,
         })
-      }
+        .select('id')
+        .single()
+      conversationId = (newConv as { id: string }).id
     }
 
+    // 2. Salva mensagem
+    await supabaseAdmin.from('whatsapp_chat_messages').insert({
+      conversation_id: conversationId,
+      tenant_id: owner.tenantId,
+      direction: 'incoming',
+      content: norm.message,
+      sent_at: new Date().toISOString(),
+    })
+
+    console.log('[whatsapp-webhook] mensagem salva em', conversationId)
     return NextResponse.json({ ok: true })
   } catch (err) {
-    console.error('Webhook Evolution error:', err)
+    console.error('[whatsapp-webhook] erro:', err)
     return NextResponse.json({ ok: true })
   }
 }
