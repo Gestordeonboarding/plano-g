@@ -167,8 +167,7 @@ export default function ConectarWhatsApp({
           <div className="flex items-center gap-2 text-xs p-3 rounded-lg"
             style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-muted)' }}>
             <CheckCircle size={13} style={{ color: 'var(--accent)' }} />
-            Todas as mensagens recebidas neste número aparecem em{' '}
-            <strong style={{ color: 'var(--text-secondary)' }}>Conversas</strong>
+            WhatsApp conectado e pronto pra automações
           </div>
         </div>
       )}

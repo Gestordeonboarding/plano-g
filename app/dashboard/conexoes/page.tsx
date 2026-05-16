@@ -3,8 +3,6 @@ import { redirect } from 'next/navigation'
 import { getViewingTenantId } from '@/lib/supabase/get-tenant'
 import { createClient as createAdmin } from '@supabase/supabase-js'
 import ConectarWhatsApp from './ConectarWhatsApp'
-import Link from 'next/link'
-import { MessageSquare } from 'lucide-react'
 
 const supabaseAdmin = createAdmin(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -40,7 +38,7 @@ export default async function ConexoesPage() {
           Conexões
         </h1>
         <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
-          Conecte seu WhatsApp e receba todas as mensagens aqui no sistema
+          Conecte seu WhatsApp ao sistema
         </p>
       </div>
 
@@ -50,28 +48,6 @@ export default async function ConexoesPage() {
         tenantId={tenantId}
         hasInstance={!!u?.zapi_instance_id}
       />
-
-      {/* Shortcut to conversations */}
-      {u?.whatsapp_phone && (
-        <Link
-          href="/dashboard/conversas"
-          className="card-pg p-4 flex items-center justify-between transition-all"
-          style={{ border: '1px solid var(--border-color)' }}
-        >
-          <div className="flex items-center gap-3">
-            <MessageSquare size={18} style={{ color: 'var(--accent)' }} />
-            <div>
-              <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
-                Ver Conversas
-              </p>
-              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                Todas as mensagens recebidas neste número
-              </p>
-            </div>
-          </div>
-          <span className="text-sm" style={{ color: 'var(--accent)' }}>→</span>
-        </Link>
-      )}
     </div>
   )
 }

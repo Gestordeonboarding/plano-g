@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import {
   LayoutDashboard, Users, UserCheck, Upload,
   Zap, Settings, LogOut, UsersRound, Presentation, Code, BarChart3, Wifi,
-  MessageSquare, LineChart, Bell, Tv, Building2, Phone,
+  LineChart, Bell, Tv, Building2, Phone,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Logo } from '@/components/ui/Logo'
@@ -39,7 +39,6 @@ const NAV_GROUPS: NavGroup[] = [
     label: 'Ferramentas',
     items: [
       { href: '/dashboard/apresentacoes', label: 'Apresentações', icon: Presentation, isNew: true,    roles: ['seller', 'tenant_admin', 'agency_admin'] },
-      { href: '/dashboard/conversas',     label: 'Conversas',     icon: MessageSquare,                roles: ['seller', 'tenant_admin', 'agency_admin'] },
       { href: '/dashboard/notificacoes',  label: 'Notificações',  icon: Bell,                         roles: ['seller', 'tenant_admin', 'agency_admin'] },
       { href: '/dashboard/tv',            label: 'Modo TV',       icon: Tv,                           roles: ['seller', 'tenant_admin', 'agency_admin'] },
     ],

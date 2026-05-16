@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
-  LayoutDashboard, Users, UserCheck, MessageSquare, Bell, Menu, X, Tv,
+  LayoutDashboard, Users, UserCheck, Bell, Menu, X, Tv,
   Upload, Zap, Settings, LogOut, UsersRound, Presentation, Code, BarChart3, Wifi, LineChart, Phone
 } from 'lucide-react'
 import { useState } from 'react'
@@ -17,7 +17,6 @@ const bottomItems = [
   { href: '/dashboard',              label: 'Início',       icon: LayoutDashboard, exact: true,  roles: ['seller', 'tenant_admin', 'agency_admin'] },
   { href: '/dashboard/leads',        label: 'Leads',        icon: Users,                          roles: ['seller', 'tenant_admin', 'agency_admin'] },
   { href: '/dashboard/consorciados', label: 'Clientes',     icon: UserCheck,                      roles: ['seller', 'tenant_admin', 'agency_admin'] },
-  { href: '/dashboard/conversas',    label: 'Conversas',    icon: MessageSquare,                  roles: ['seller', 'tenant_admin', 'agency_admin'] },
   { href: '/dashboard/notificacoes', label: 'Alertas',      icon: Bell,                           roles: ['seller', 'tenant_admin', 'agency_admin'] },
 ]
 
@@ -26,7 +25,6 @@ const allNavItems = [
   { href: '/dashboard/leads',            label: 'Leads',          icon: Users,                          roles: ['seller', 'tenant_admin', 'agency_admin'] },
   { href: '/dashboard/consorciados',     label: 'Consorciados',   icon: UserCheck,                      roles: ['seller', 'tenant_admin', 'agency_admin'] },
   { href: '/dashboard/apresentacoes',    label: 'Apresentações',  icon: Presentation,                   roles: ['seller', 'tenant_admin', 'agency_admin'] },
-  { href: '/dashboard/conversas',        label: 'Conversas',      icon: MessageSquare,                  roles: ['seller', 'tenant_admin', 'agency_admin'] },
   { href: '/dashboard/notificacoes',     label: 'Notificações',   icon: Bell,                           roles: ['seller', 'tenant_admin', 'agency_admin'] },
   { href: '/dashboard/relatorios',       label: 'Relatórios',     icon: BarChart3,                      roles: ['seller', 'tenant_admin', 'agency_admin'] },
   { href: '/dashboard/relatorios/ligacoes', label: 'Ligações',    icon: Phone,                          roles: ['tenant_admin', 'agency_admin'] },
