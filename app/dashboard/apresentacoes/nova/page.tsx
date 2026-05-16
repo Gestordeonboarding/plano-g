@@ -52,7 +52,6 @@ export default async function NovaApresentacaoPage({
       sellerId={user.id}
       defaultSellerName={u.full_name || ''}
       defaultSellerPhone={u.phone || ''}
-      defaultSellerEmail={u.email || ''}
       defaultCompanyName={companyName}
     />
   )

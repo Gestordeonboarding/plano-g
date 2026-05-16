@@ -2,31 +2,47 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { MessageCircle, ChevronLeft, ChevronRight } from 'lucide-react'
-import { Slide, PresentationCustomization } from '@/lib/presentations/types'
-import { SlideShowTransition } from '@/components/presentations/SlideRenderer'
-import { getPalette } from '@/lib/presentations/admin-colors'
+import {
+  Slide, FieldValues, PresentationTheme, FieldDef,
+} from '@/lib/presentations/types'
+import { SlideStage } from '@/components/presentations/SlideStage'
+import SlideRenderer from '@/components/presentations/SlideRenderer'
+import { processFieldValues } from '@/lib/presentations/interpolate'
 
 interface Props {
   shareToken: string
   title: string
   slides: Slide[]
-  customization: PresentationCustomization
+  theme: PresentationTheme
+  fieldValues: FieldValues
+  fields: FieldDef[]
   tenantName: string
   sellerPhone: string | null
 }
 
-export default function PublicPresentation({ shareToken, title, slides, customization, tenantName, sellerPhone }: Props) {
+export default function PublicPresentation({
+  shareToken,
+  title,
+  slides,
+  theme,
+  fieldValues,
+  fields,
+  tenantName,
+  sellerPhone,
+}: Props) {
   const [currentIdx, setCurrentIdx] = useState(0)
   const visibleSlides = slides.filter((s) => s.visible !== false)
-  const palette = getPalette(customization.admin_id)
-  const accentColor = customization.primary_override || palette.primary
+  const processedValues = processFieldValues(fieldValues, fields)
 
   useEffect(() => {
     fetch(`/api/presentations/view/${shareToken}`, { method: 'POST' }).catch(() => {})
   }, [shareToken])
 
   const prev = useCallback(() => setCurrentIdx((i) => Math.max(0, i - 1)), [])
-  const next = useCallback(() => setCurrentIdx((i) => Math.min(visibleSlides.length - 1, i + 1)), [visibleSlides.length])
+  const next = useCallback(
+    () => setCurrentIdx((i) => Math.min(visibleSlides.length - 1, i + 1)),
+    [visibleSlides.length],
+  )
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -46,50 +62,131 @@ export default function PublicPresentation({ shareToken, title, slides, customiz
     : null
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#0D1F1E' }}>
-      <header className="flex items-center justify-between px-6 py-3 border-b"
-        style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
-        <span className="font-bold text-sm" style={{ color: accentColor }}>{tenantName}</span>
+    <div
+      style={{
+        minHeight: '100vh',
+        background: theme.background,
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+    >
+      {/* Header */}
+      <header
+        style={{
+          padding: '12px 24px',
+          borderBottom: '1px solid rgba(255,255,255,0.08)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexShrink: 0,
+        }}
+      >
+        <span style={{ fontWeight: 700, fontSize: 14, color: theme.primary }}>{tenantName}</span>
         {waUrl && (
-          <a href={waUrl} target="_blank" rel="noopener noreferrer"
-            className="flex items-center gap-2 text-xs px-3 py-1.5 rounded-lg font-medium"
-            style={{ backgroundColor: '#25D366', color: '#fff' }}>
+          <a
+            href={waUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              fontSize: 12,
+              padding: '6px 12px',
+              borderRadius: 8,
+              background: '#25D366',
+              color: '#fff',
+              textDecoration: 'none',
+              fontWeight: 600,
+            }}
+          >
             <MessageCircle size={14} /> Falar com consultor
           </a>
         )}
       </header>
 
-      <div className="flex-1 flex flex-col items-center justify-center p-6">
-        <div className="w-full max-w-5xl aspect-video rounded-2xl overflow-hidden shadow-2xl relative">
-          <SlideShowTransition slide={currentSlide} customization={customization} transitionKey={currentIdx} />
+      {/* Slide */}
+      <div
+        style={{
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 24,
+        }}
+      >
+        <div
+          style={{
+            width: '100%',
+            maxWidth: 1100,
+            aspectRatio: '16 / 9',
+            borderRadius: 12,
+            overflow: 'hidden',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+          }}
+        >
+          <SlideStage mode="preview">
+            <SlideRenderer slide={currentSlide} theme={theme} values={processedValues} />
+          </SlideStage>
         </div>
 
-        <div className="flex items-center gap-6 mt-6">
-          <button onClick={prev} disabled={currentIdx === 0}
-            className="w-10 h-10 rounded-full flex items-center justify-center disabled:opacity-30 transition-opacity"
-            style={{ backgroundColor: 'rgba(255,255,255,0.1)', color: '#fff' }}>
-            <ChevronLeft size={20} />
+        {/* Navegação */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 24, marginTop: 24 }}>
+          <button
+            onClick={prev}
+            disabled={currentIdx === 0}
+            style={ctrlBtn(currentIdx === 0)}
+          >
+            <ChevronLeft size={18} />
           </button>
 
-          <div className="flex gap-1.5">
+          <div style={{ display: 'flex', gap: 6 }}>
             {visibleSlides.map((_, i) => (
-              <button key={i} onClick={() => setCurrentIdx(i)}
-                className="w-2 h-2 rounded-full transition-all"
-                style={{ backgroundColor: i === currentIdx ? accentColor : 'rgba(255,255,255,0.3)' }} />
+              <button
+                key={i}
+                onClick={() => setCurrentIdx(i)}
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: '50%',
+                  border: 'none',
+                  cursor: 'pointer',
+                  background: i === currentIdx ? theme.primary : 'rgba(255,255,255,0.25)',
+                }}
+              />
             ))}
           </div>
 
-          <button onClick={next} disabled={currentIdx === visibleSlides.length - 1}
-            className="w-10 h-10 rounded-full flex items-center justify-center disabled:opacity-30 transition-opacity"
-            style={{ backgroundColor: 'rgba(255,255,255,0.1)', color: '#fff' }}>
-            <ChevronRight size={20} />
+          <button
+            onClick={next}
+            disabled={currentIdx === visibleSlides.length - 1}
+            style={ctrlBtn(currentIdx === visibleSlides.length - 1)}
+          >
+            <ChevronRight size={18} />
           </button>
         </div>
 
-        <p className="text-xs mt-3" style={{ color: 'rgba(255,255,255,0.3)' }}>
+        <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', marginTop: 12 }}>
           {currentIdx + 1} / {visibleSlides.length}
         </p>
       </div>
     </div>
   )
+}
+
+function ctrlBtn(disabled: boolean): React.CSSProperties {
+  return {
+    width: 38,
+    height: 38,
+    borderRadius: '50%',
+    background: 'rgba(255,255,255,0.08)',
+    color: '#fff',
+    border: 'none',
+    cursor: disabled ? 'not-allowed' : 'pointer',
+    opacity: disabled ? 0.3 : 1,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  }
 }
