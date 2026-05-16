@@ -35,7 +35,6 @@ export default async function TvPage() {
     const score = converted * 10 + documentacao * 4 + proposta * 2 + (total - converted - documentacao - proposta)
     return { id: s.id, name: s.full_name || s.email || 'Vendedor', converted, proposta, documentacao, total, score }
   })
-  .filter((s) => s.total > 0)
   .sort((a, b) => b.score - a.score || b.converted - a.converted)
 
   return <TvClient initialRanking={ranking} />

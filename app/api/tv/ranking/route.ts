@@ -44,7 +44,6 @@ export async function GET() {
         score,
       }
     })
-    .filter((s) => s.total > 0)
     .sort((a, b) => b.score - a.score || b.converted - a.converted)
 
     return NextResponse.json({ ranking })
