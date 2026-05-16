@@ -51,18 +51,6 @@ export default function LeadDetail({ lead: initialLead, sellers }: {
     setStatus(newStatus)
     const supabase = createClient()
     await supabase.from('leads').update({ status: newStatus, last_contact_at: new Date().toISOString() }).eq('id', lead.id)
-    // Dispara automação WhatsApp se houver regra para esse gatilho
-    triggerAutomation(`status_${newStatus}`)
-  }
-
-  async function triggerAutomation(trigger: string) {
-    try {
-      await fetch('/api/automations/trigger', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ trigger, lead_id: lead.id }),
-      })
-    } catch { /* silencioso — automação é best-effort */ }
   }
 
   async function sendWhatsApp(e: React.FormEvent) {

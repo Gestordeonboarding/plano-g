@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
   LayoutDashboard, Users, UserCheck, Upload,
-  Zap, Settings, LogOut, UsersRound, Presentation, Code, BarChart3, Wifi,
+  Settings, LogOut, UsersRound, Presentation, Code, BarChart3,
   LineChart, Bell, Tv, Building2,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -48,11 +48,9 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: '/dashboard/relatorios',          label: 'Relatórios',     icon: BarChart3,    roles: ['seller', 'tenant_admin', 'agency_admin'] },
       { href: '/dashboard/analytics',           label: 'Analytics',      icon: LineChart,    roles: ['tenant_admin', 'agency_admin'] },
-      { href: '/dashboard/automacoes',          label: 'Automações',     icon: Zap,          roles: ['tenant_admin', 'agency_admin'] },
       { href: '/dashboard/equipe',              label: 'Equipe',         icon: UsersRound,   roles: ['tenant_admin', 'agency_admin'] },
       { href: '/dashboard/importar',            label: 'Importar dados', icon: Upload,       roles: ['tenant_admin', 'agency_admin'] },
       { href: '/dashboard/administradoras',     label: 'Administradoras', icon: Building2,   roles: ['tenant_admin', 'agency_admin'] },
-      { href: '/dashboard/conexoes',            label: 'Conexões',       icon: Wifi,         roles: ['seller', 'tenant_admin', 'agency_admin'] },
       { href: '/dashboard/api',                 label: 'API de Leads',   icon: Code,         roles: ['tenant_admin', 'agency_admin'] },
       { href: '/dashboard/configuracoes',       label: 'Configurações',  icon: Settings,     roles: ['tenant_admin', 'agency_admin'] },
     ],
