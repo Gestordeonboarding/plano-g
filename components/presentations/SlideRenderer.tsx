@@ -45,6 +45,5 @@ export default function SlideRenderer({ slide, theme, values }: SlideRendererPro
     )
   }
 
-  // key={slide.id} força remontagem ao trocar de slide — reseta animações CSS de entrada
-  return <Component key={slide.id} slide={slide} theme={theme} values={values} />
+  return <Component slide={slide} theme={theme} values={values} />
 }
