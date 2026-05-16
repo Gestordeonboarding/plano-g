@@ -1,26 +1,19 @@
 'use client'
 
-/**
- * TvClient — orquestrador do Modo TV.
- *
- * Responsabilidades:
- *  - Polling do ranking a cada 30s (mantém dados frescos)
- *  - Polling de simulações a cada 5s (notifica alertas com chime)
- *  - Toggle manual entre Ranking ↔ Corrida (botões no topo)
- *  - Auto-alternância automática a cada 45s entre os dois modos
- *  - Relógio em tempo real no header
- *  - Alerta flutuante quando vendedor faz nova simulação
- */
-
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { TrendingUp } from 'lucide-react'
-import { SellerRankingItem } from '@/lib/tv/getRanking'
-import { RankingView } from '@/components/tv/RankingView'
-import { RaceView } from '@/components/tv/RaceView'
+import { TrendingUp, Phone, Trophy, Medal, Star } from 'lucide-react'
 
-type ViewMode = 'ranking' | 'race'
+type SellerRank = {
+  id: string
+  name: string
+  converted: number
+  proposta: number
+  documentacao: number
+  total: number
+  score: number
+}
 
-interface Simulation {
+type Simulation = {
   id: string
   client_name: string
   lance_percent: number
@@ -30,7 +23,6 @@ interface Simulation {
   created_at: string
 }
 
-// ── Som de notificação (chime) — preservado do TvClient legado ──────────────
 function playChime() {
   try {
     const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
@@ -39,64 +31,143 @@ function playChime() {
       const osc = ctx.createOscillator()
       const gain = ctx.createGain()
       osc.connect(gain); gain.connect(ctx.destination)
-      osc.type = 'sine'
-      osc.frequency.value = freq
+      osc.type = 'sine'; osc.frequency.value = freq
       gain.gain.setValueAtTime(0, now + i * 0.1)
       gain.gain.linearRampToValueAtTime(0.22, now + i * 0.1 + 0.04)
       gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.1 + 0.5)
-      osc.start(now + i * 0.1)
-      osc.stop(now + i * 0.1 + 0.51)
+      osc.start(now + i * 0.1); osc.stop(now + i * 0.1 + 0.51)
     })
-  } catch {
-    /* AudioContext indisponível — silencioso */
-  }
+  } catch { /* ignorado */ }
 }
 
-export default function TvClient({ initialRanking }: { initialRanking: SellerRankingItem[] }) {
-  const [ranking, setRanking] = useState<SellerRankingItem[]>(initialRanking)
-  const [viewMode, setViewMode] = useState<ViewMode>('ranking')
+function Avatar({ name, size = 56 }: { name: string; size?: number }) {
+  const letter = name.charAt(0).toUpperCase()
+  const colors = ['#00D4C8', '#A78BFA', '#FFB547', '#FF5C5C', '#00A89D', '#F472B6']
+  const color = colors[name.charCodeAt(0) % colors.length]
+  return (
+    <div style={{
+      width: size, height: size, borderRadius: '50%', flexShrink: 0,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      background: `${color}25`, border: `2px solid ${color}60`,
+      fontSize: size * 0.4, fontWeight: 800, color,
+    }}>
+      {letter}
+    </div>
+  )
+}
+
+function PodiumCard({ seller, position, highlight }: { seller: SellerRank; position: number; highlight: boolean }) {
+  const isFirst = position === 1
+  const colors = { 1: '#FFD700', 2: '#C0C0C0', 3: '#CD7F32' }
+  const icons = { 1: Trophy, 2: Medal, 3: Star }
+  const color = colors[position as 1 | 2 | 3]
+  const Icon = icons[position as 1 | 2 | 3]
+  const heights = { 1: 200, 2: 160, 3: 140 }
+  const height = heights[position as 1 | 2 | 3]
+
+  return (
+    <div style={{
+      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12,
+      animation: highlight ? 'pulse 0.6s ease' : 'none',
+    }}>
+      <style>{`
+        @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.04)} }
+        @keyframes shine { 0%{opacity:0;transform:translateY(20px)} 100%{opacity:1;transform:translateY(0)} }
+      `}</style>
+
+      {/* Badge de posição */}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+        <Icon size={isFirst ? 36 : 28} color={color} />
+        <Avatar name={seller.name} size={isFirst ? 80 : 64} />
+        <p style={{ fontSize: isFirst ? 20 : 16, fontWeight: 800, color: 'var(--text-primary)', textAlign: 'center', maxWidth: 140 }}>
+          {seller.name}
+        </p>
+      </div>
+
+      {/* Pedestal */}
+      <div style={{
+        width: isFirst ? 180 : 150,
+        height,
+        borderRadius: '12px 12px 0 0',
+        background: `linear-gradient(180deg, ${color}30, ${color}10)`,
+        border: `2px solid ${color}50`,
+        borderBottom: 'none',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        gap: 8, padding: 16,
+        boxShadow: isFirst ? `0 0 40px ${color}30` : 'none',
+      }}>
+        <p style={{ fontSize: isFirst ? 52 : 40, fontWeight: 900, color, lineHeight: 1 }}>
+          {seller.converted}
+        </p>
+        <p style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', fontWeight: 600 }}>
+          conversões
+        </p>
+        <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+          <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20, background: 'rgba(255,181,71,0.2)', color: '#FFB547', fontWeight: 700 }}>
+            {seller.proposta} propostas
+          </span>
+        </div>
+        <div style={{
+          fontSize: 11, color: 'var(--text-muted)', fontWeight: 600,
+          padding: '3px 10px', borderRadius: 20, background: 'rgba(255,255,255,0.05)',
+        }}>
+          {seller.total} leads
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default function TvClient({ initialRanking }: { initialRanking: SellerRank[] }) {
+  const [ranking, setRanking] = useState(initialRanking)
   const [clock, setClock] = useState(new Date())
-  const [lastUpdate, setLastUpdate] = useState(new Date())
   const [simAlert, setSimAlert] = useState<Simulation | null>(null)
-
+  const [highlightId, setHighlightId] = useState<string | null>(null)
   const lastCheck = useRef(new Date().toISOString())
-  const seenSimIds = useRef<Set<string>>(new Set())
+  const seenIds = useRef<Set<string>>(new Set())
+  const prevRanking = useRef<SellerRank[]>(initialRanking)
 
-  // ── Relógio em tempo real ─────────────────────────────────────────────────
+  // Relógio
   useEffect(() => {
     const t = setInterval(() => setClock(new Date()), 1000)
     return () => clearInterval(t)
   }, [])
 
-  // ── Fetch do ranking ──────────────────────────────────────────────────────
+  // Atualiza ranking
   const fetchRanking = useCallback(async () => {
     try {
-      const res = await fetch('/api/tv/ranking', { cache: 'no-store' })
-      const { ranking: data } = (await res.json()) as { ranking: SellerRankingItem[] }
-      if (data) {
-        setRanking(data)
-        setLastUpdate(new Date())
-      }
-    } catch {
-      /* falha silenciosa — próxima tentativa em 30s */
-    }
+      const res = await fetch('/api/tv/ranking')
+      const { ranking: newRanking } = await res.json() as { ranking: SellerRank[] }
+      if (!newRanking?.length) return
+
+      // Detecta quem subiu de posição para animar
+      const prev = prevRanking.current
+      newRanking.forEach((seller, newIdx) => {
+        const prevIdx = prev.findIndex((s) => s.id === seller.id)
+        if (prevIdx > newIdx) {
+          setHighlightId(seller.id)
+          setTimeout(() => setHighlightId(null), 2000)
+        }
+      })
+
+      prevRanking.current = newRanking
+      setRanking(newRanking)
+    } catch { /* ignora */ }
   }, [])
 
-  // ── Polling de simulações (alerta com chime) ──────────────────────────────
+  // Polling de simulações
   const pollSimulations = useCallback(async () => {
     try {
       const res = await fetch(`/api/notifications/unread?since=${encodeURIComponent(lastCheck.current)}`)
-      const { notifications } = (await res.json()) as {
+      const { notifications } = await res.json() as {
         notifications: Array<{ id: string; title: string; data: Record<string, unknown>; created_at: string }>
       }
       lastCheck.current = new Date().toISOString()
 
-      const novos = notifications.filter(
-        (n) => !seenSimIds.current.has(n.id) && n.data?.lance_percent != null,
-      )
-      if (novos.length === 0) return
+      const novos = notifications.filter((n) => !seenIds.current.has(n.id) && n.data?.lance_percent != null)
+      if (!novos.length) return
 
-      novos.forEach((n) => seenSimIds.current.add(n.id))
+      novos.forEach((n) => seenIds.current.add(n.id))
       const n = novos[0]
       playChime()
       setSimAlert({
@@ -109,184 +180,163 @@ export default function TvClient({ initialRanking }: { initialRanking: SellerRan
         created_at: n.created_at,
       })
       setTimeout(() => setSimAlert(null), 8000)
-      // Re-busca ranking após simulação (pode ter rolado conversão)
+      // Atualiza ranking após simulação (pode ter convertido)
       setTimeout(fetchRanking, 2000)
-    } catch {
-      /* ignora */
-    }
+    } catch { /* ignora */ }
   }, [fetchRanking])
 
-  // ── Intervalos: ranking 30s + simulações 5s ───────────────────────────────
   useEffect(() => {
-    const rank = setInterval(fetchRanking, 30_000)
-    const sim = setInterval(pollSimulations, 5_000)
-    return () => {
-      clearInterval(rank)
-      clearInterval(sim)
-    }
-  }, [fetchRanking, pollSimulations])
+    const sim = setInterval(pollSimulations, 5000)
+    const rank = setInterval(fetchRanking, 30000)
+    return () => { clearInterval(sim); clearInterval(rank) }
+  }, [pollSimulations, fetchRanking])
 
-  // ── Auto-alternância Ranking ↔ Corrida a cada 45s ─────────────────────────
-  useEffect(() => {
-    const t = setInterval(() => {
-      setViewMode((prev) => (prev === 'ranking' ? 'race' : 'ranking'))
-    }, 45_000)
-    return () => clearInterval(t)
-  }, [])
+  // Top 3 e restante
+  const top3 = ranking.slice(0, 3)
+  const rest = ranking.slice(3)
+
+  // Podium order: 2º | 1º | 3º
+  const podiumOrder = [
+    top3[1] ? { seller: top3[1], pos: 2 } : null,
+    top3[0] ? { seller: top3[0], pos: 1 } : null,
+    top3[2] ? { seller: top3[2], pos: 3 } : null,
+  ].filter(Boolean) as Array<{ seller: SellerRank; pos: number }>
 
   return (
-    <div
-      style={{
-        width: '100vw',
-        height: '100vh',
-        background: '#080f0d',
-        overflow: 'hidden',
-        position: 'relative',
-        display: 'flex',
-        flexDirection: 'column',
-        fontFamily: 'Inter, system-ui, sans-serif',
-      }}
-    >
-      {/* Header fixo */}
-      <div
-        style={{
-          height: 88,
-          background: 'rgba(8,15,13,0.92)',
-          borderBottom: '1px solid rgba(0,196,180,0.15)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '0 40px',
-          flexShrink: 0,
-          backdropFilter: 'blur(12px)',
-        }}
-      >
-        {/* Esquerda: título */}
+    <div style={{
+      minHeight: '100vh', backgroundColor: '#080f0e',
+      display: 'flex', flexDirection: 'column',
+      fontFamily: 'inherit', overflow: 'hidden',
+    }}>
+      <style>{`
+        @keyframes slideDown { from{opacity:0;transform:translateY(-30px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes rowIn { from{opacity:0;transform:translateX(-20px)} to{opacity:1;transform:translateX(0)} }
+        @keyframes alertIn { from{opacity:0;transform:translateX(120%)} to{opacity:1;transform:translateX(0)} }
+      `}</style>
+
+      {/* Header */}
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '20px 40px', borderBottom: '1px solid rgba(0,212,200,0.15)',
+        background: 'rgba(0,212,200,0.03)',
+      }}>
         <div>
-          <p
-            style={{
-              fontSize: 12,
-              fontWeight: 700,
-              color: '#00c4b4',
-              textTransform: 'uppercase',
-              letterSpacing: '0.18em',
-              marginBottom: 2,
-            }}
-          >
+          <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: 2 }}>
             🏆 Ranking de Vendedores
           </p>
-          <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>
-            Atualizado às {lastUpdate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-          </p>
+          <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>Atualizado em tempo real</p>
         </div>
-
-        {/* Centro: toggle de modo */}
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <ModeButton active={viewMode === 'ranking'} onClick={() => setViewMode('ranking')}>
-            🏆 Ranking
-          </ModeButton>
-          <ModeButton active={viewMode === 'race'} onClick={() => setViewMode('race')}>
-            🏎️ Corrida
-          </ModeButton>
-        </div>
-
-        {/* Direita: relógio */}
         <div style={{ textAlign: 'right' }}>
-          <p
-            style={{
-              fontSize: 36,
-              fontWeight: 900,
-              color: '#ffffff',
-              fontVariantNumeric: 'tabular-nums',
-              lineHeight: 1,
-            }}
-          >
+          <p style={{ fontSize: 42, fontWeight: 900, color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
             {clock.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
           </p>
-          <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', marginTop: 4 }}>
-            {clock.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })}
+          <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
+            {clock.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
           </p>
         </div>
       </div>
 
-      {/* Conteúdo (Ranking ou Race) */}
-      <div style={{ flex: 1, minHeight: 0 }}>
-        {viewMode === 'ranking' ? (
-          <RankingView sellers={ranking} />
-        ) : (
-          <RaceView sellers={ranking} />
-        )}
-      </div>
+      {ranking.length === 0 ? (
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 16 }}>
+          <Trophy size={64} color="var(--text-muted)" />
+          <p style={{ fontSize: 22, color: 'var(--text-muted)', fontWeight: 600 }}>Nenhum lead cadastrado ainda</p>
+        </div>
+      ) : (
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '32px 40px', gap: 32 }}>
 
-      {/* Alerta de nova simulação */}
-      {simAlert && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 100,
-            right: 24,
-            zIndex: 9999,
-            background: 'rgba(0,196,180,0.95)',
-            color: '#080f0d',
-            borderRadius: 12,
-            padding: '16px 20px',
-            minWidth: 320,
-            boxShadow: '0 12px 48px rgba(0,196,180,0.3)',
-            animation: 'alertIn 0.4s ease both',
-          }}
-        >
-          <style>{`@keyframes alertIn { from{opacity:0;transform:translateX(120%)} to{opacity:1;transform:translateX(0)} }`}</style>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-            <TrendingUp size={16} />
-            <span style={{ fontWeight: 800, fontSize: 13, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-              Nova simulação
-            </span>
-          </div>
-          <div style={{ fontSize: 17, fontWeight: 700 }}>{simAlert.client_name}</div>
-          <div style={{ fontSize: 13, opacity: 0.8, marginTop: 4 }}>
-            Lance de {simAlert.lance_percent}% ·{' '}
-            {new Intl.NumberFormat('pt-BR', {
-              style: 'currency',
-              currency: 'BRL',
-              minimumFractionDigits: 0,
-            }).format(simAlert.lance_value)}
-          </div>
-          {simAlert.seller_name && (
-            <div style={{ fontSize: 11, opacity: 0.65, marginTop: 6 }}>por {simAlert.seller_name}</div>
+          {/* Pódio */}
+          {podiumOrder.length > 0 && (
+            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: 24 }}>
+              {podiumOrder.map(({ seller, pos }) => (
+                <PodiumCard
+                  key={seller.id}
+                  seller={seller}
+                  position={pos}
+                  highlight={highlightId === seller.id}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* Resto do ranking */}
+          {rest.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 800, margin: '0 auto', width: '100%' }}>
+              <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', textAlign: 'center', marginBottom: 4 }}>
+                Demais posições
+              </p>
+              {rest.map((seller, idx) => (
+                <div key={seller.id} style={{
+                  display: 'flex', alignItems: 'center', gap: 16,
+                  padding: '14px 20px', borderRadius: 14,
+                  background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)',
+                  animation: `rowIn 0.4s ease ${idx * 0.05}s both`,
+                  transition: 'all 0.3s ease',
+                  boxShadow: highlightId === seller.id ? '0 0 20px rgba(0,212,200,0.3)' : 'none',
+                }}>
+                  <p style={{ fontSize: 22, fontWeight: 900, color: 'var(--text-muted)', width: 36, textAlign: 'center' }}>
+                    {idx + 4}
+                  </p>
+                  <Avatar name={seller.name} size={44} />
+                  <p style={{ flex: 1, fontSize: 18, fontWeight: 700, color: 'var(--text-primary)' }}>{seller.name}</p>
+                  <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+                    <div style={{ textAlign: 'center' }}>
+                      <p style={{ fontSize: 24, fontWeight: 900, color: 'var(--accent)', lineHeight: 1 }}>{seller.converted}</p>
+                      <p style={{ fontSize: 10, color: 'var(--text-muted)' }}>conversões</p>
+                    </div>
+                    <div style={{ textAlign: 'center' }}>
+                      <p style={{ fontSize: 18, fontWeight: 700, color: '#FFB547', lineHeight: 1 }}>{seller.proposta}</p>
+                      <p style={{ fontSize: 10, color: 'var(--text-muted)' }}>propostas</p>
+                    </div>
+                    <div style={{ textAlign: 'center' }}>
+                      <p style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-secondary)', lineHeight: 1 }}>{seller.total}</p>
+                      <p style={{ fontSize: 10, color: 'var(--text-muted)' }}>leads</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
         </div>
       )}
-    </div>
-  )
-}
 
-// ── Botão de modo (Ranking/Corrida) ─────────────────────────────────────────
-function ModeButton({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean
-  onClick: () => void
-  children: React.ReactNode
-}) {
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        padding: '10px 18px',
-        borderRadius: 8,
-        border: `1px solid ${active ? '#00c4b4' : 'rgba(255,255,255,0.1)'}`,
-        background: active ? 'rgba(0,196,180,0.15)' : 'transparent',
-        color: active ? '#00c4b4' : 'rgba(255,255,255,0.45)',
-        fontSize: 14,
-        fontWeight: 500,
-        cursor: 'pointer',
-        transition: 'all 0.15s',
-        fontFamily: 'inherit',
-      }}
-    >
-      {children}
-    </button>
+      {/* Alert de simulação — canto inferior direito */}
+      {simAlert && (() => {
+        const prob = simAlert.probability
+        const color = prob >= 70 ? '#00D4C8' : prob >= 40 ? '#FFB547' : '#FF5C5C'
+        return (
+          <div style={{
+            position: 'fixed', bottom: 32, right: 32, zIndex: 999, width: 380,
+            borderRadius: 18, overflow: 'hidden',
+            boxShadow: `0 12px 48px rgba(0,0,0,0.7), 0 0 0 2px ${color}50`,
+            animation: 'alertIn 0.45s cubic-bezier(0.22,1,0.36,1) both',
+          }}>
+            <div style={{ height: 4, background: color }} />
+            <div style={{ background: '#0f1e1d', padding: '18px 20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                <TrendingUp size={20} color={color} />
+                <p style={{ fontSize: 14, fontWeight: 800, color: 'var(--text-primary)' }}>Nova simulação!</p>
+              </div>
+              <p style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 2 }}>{simAlert.client_name}</p>
+              {simAlert.seller_name && (
+                <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 10 }}>Vendedor: {simAlert.seller_name}</p>
+              )}
+              <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                <span style={{ fontSize: 24, fontWeight: 900, color }}>R$ {simAlert.lance_value.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</span>
+                <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                  <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{simAlert.lance_percent.toFixed(1)}% do crédito</span>
+                  <span style={{ fontSize: 11, color }}>· {prob}% de chance</span>
+                </div>
+              </div>
+              <div style={{ borderRadius: 10, padding: '8px 12px', background: `${color}12`, display: 'flex', gap: 8, alignItems: 'center' }}>
+                <Phone size={13} color={color} />
+                <p style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 600 }}>
+                  {prob >= 70 ? '🔥 Alta chance! Entre em contato agora!' : prob >= 40 ? '⚡ Ligue agora e oriente o lance!' : '📞 Cliente aquecido! Fale com ele!'}
+                </p>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+    </div>
   )
 }
