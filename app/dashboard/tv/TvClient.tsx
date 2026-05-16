@@ -13,8 +13,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
-import { TrendingUp, X } from 'lucide-react'
+import { TrendingUp } from 'lucide-react'
 import { SellerRankingItem } from '@/lib/tv/getRanking'
 import { RankingView } from '@/components/tv/RankingView'
 import { RaceView } from '@/components/tv/RaceView'
@@ -54,7 +53,6 @@ function playChime() {
 }
 
 export default function TvClient({ initialRanking }: { initialRanking: SellerRankingItem[] }) {
-  const router = useRouter()
   const [ranking, setRanking] = useState<SellerRankingItem[]>(initialRanking)
   const [viewMode, setViewMode] = useState<ViewMode>('ranking')
   const [clock, setClock] = useState(new Date())
@@ -63,22 +61,6 @@ export default function TvClient({ initialRanking }: { initialRanking: SellerRan
 
   const lastCheck = useRef(new Date().toISOString())
   const seenSimIds = useRef<Set<string>>(new Set())
-
-  // ── Sair do Modo TV (botão ou tecla ESC) ──────────────────────────────────
-  const exitTvMode = useCallback(() => {
-    router.push('/dashboard')
-  }, [router])
-
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') {
-        e.preventDefault()
-        exitTvMode()
-      }
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [exitTvMode])
 
   // ── Relógio em tempo real ─────────────────────────────────────────────────
   useEffect(() => {
@@ -208,56 +190,22 @@ export default function TvClient({ initialRanking }: { initialRanking: SellerRan
           </ModeButton>
         </div>
 
-        {/* Direita: relógio + sair */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
-          <div style={{ textAlign: 'right' }}>
-            <p
-              style={{
-                fontSize: 36,
-                fontWeight: 900,
-                color: '#ffffff',
-                fontVariantNumeric: 'tabular-nums',
-                lineHeight: 1,
-              }}
-            >
-              {clock.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-            </p>
-            <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', marginTop: 4 }}>
-              {clock.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })}
-            </p>
-          </div>
-
-          {/* Botão de saída — volta pro dashboard */}
-          <button
-            onClick={exitTvMode}
-            title="Sair do Modo TV (ESC)"
+        {/* Direita: relógio */}
+        <div style={{ textAlign: 'right' }}>
+          <p
             style={{
-              width: 44,
-              height: 44,
-              borderRadius: 8,
-              border: '1px solid rgba(255,255,255,0.1)',
-              background: 'rgba(255,255,255,0.04)',
-              color: 'rgba(255,255,255,0.5)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              transition: 'all 0.15s',
-              fontFamily: 'inherit',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'rgba(226,75,74,0.15)'
-              e.currentTarget.style.borderColor = 'rgba(226,75,74,0.4)'
-              e.currentTarget.style.color = '#e24b4a'
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'rgba(255,255,255,0.04)'
-              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'
-              e.currentTarget.style.color = 'rgba(255,255,255,0.5)'
+              fontSize: 36,
+              fontWeight: 900,
+              color: '#ffffff',
+              fontVariantNumeric: 'tabular-nums',
+              lineHeight: 1,
             }}
           >
-            <X size={20} />
-          </button>
+            {clock.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+          </p>
+          <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', marginTop: 4 }}>
+            {clock.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })}
+          </p>
         </div>
       </div>
 
