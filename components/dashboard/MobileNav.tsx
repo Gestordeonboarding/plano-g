@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, Users, UserCheck, Bell, Menu, X, Tv,
-  Upload, Zap, Settings, LogOut, UsersRound, Presentation, Code, BarChart3, Wifi, LineChart, Phone
+  Upload, Zap, Settings, LogOut, UsersRound, Presentation, Code, BarChart3, Wifi, LineChart
 } from 'lucide-react'
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
@@ -27,7 +27,6 @@ const allNavItems = [
   { href: '/dashboard/apresentacoes',    label: 'Apresentações',  icon: Presentation,                   roles: ['seller', 'tenant_admin', 'agency_admin'] },
   { href: '/dashboard/notificacoes',     label: 'Notificações',   icon: Bell,                           roles: ['seller', 'tenant_admin', 'agency_admin'] },
   { href: '/dashboard/relatorios',       label: 'Relatórios',     icon: BarChart3,                      roles: ['seller', 'tenant_admin', 'agency_admin'] },
-  { href: '/dashboard/relatorios/ligacoes', label: 'Ligações',    icon: Phone,                          roles: ['tenant_admin', 'agency_admin'] },
   { href: '/dashboard/tv',              label: 'Modo TV',         icon: Tv,                             roles: ['seller', 'tenant_admin', 'agency_admin'] },
   { href: '/dashboard/importar',         label: 'Importar dados', icon: Upload,                         roles: ['tenant_admin', 'agency_admin'] },
   { href: '/dashboard/conexoes',         label: 'Conexões',       icon: Wifi,                           roles: ['seller', 'tenant_admin', 'agency_admin'] },

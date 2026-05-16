@@ -5,7 +5,6 @@ import { ArrowLeft } from 'lucide-react'
 import { formatCurrency, formatDate, formatPhone, formatCPF, daysUntil } from '@/lib/utils'
 import ActivatePortalButton from './ActivatePortalButton'
 import EditConsorciado from './EditConsorciado'
-import CallsSection from './CallsSection'
 
 export default async function ConsorCiadoPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -140,14 +139,6 @@ export default async function ConsorCiadoPage({ params }: { params: Promise<{ id
           ))}
         </div>
       </div>
-
-      {/* Histórico de ligações */}
-      <CallsSection
-        consorciadoId={con.id}
-        tenantId={con.tenant_id}
-        contactName={con.full_name}
-        contactPhone={con.phone}
-      />
 
       {/* Histórico de assembleias */}
       {assemblies.length > 0 && (

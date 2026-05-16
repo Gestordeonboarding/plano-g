@@ -11,7 +11,6 @@ const ROUTE_LABELS: Record<string, string> = {
   apresentacoes: 'Apresentações',
   notificacoes: 'Notificações',
   relatorios: 'Relatórios',
-  ligacoes: 'Ligações',
   tv: 'Modo TV',
   'modo-tv': 'Modo TV',
   automacoes: 'Automações',
