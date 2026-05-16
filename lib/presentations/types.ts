@@ -59,6 +59,10 @@ export type SlideBackground = 'dark' | 'accent'
 /**
  * Slide tipado. Conteúdo dinâmico vem do FieldValues do briefing via
  * interpolação. Templates definem só a estrutura.
+ *
+ * Campos opcionais permitem que cada template no banco customize o
+ * conteúdo do slide sem precisar mudar o código do componente.
+ * Se o banco não preencher, defaults no componente cobrem.
  */
 export interface Slide {
   /** ID único dentro da apresentação */
@@ -73,6 +77,34 @@ export interface Slide {
   title: string
   /** Visível na apresentação (vendedor pode esconder slides individuais) */
   visible?: boolean
+
+  // ── Campos opcionais de conteúdo (override por slide via banco) ──────────
+  /** Headline forte usada em problem / education */
+  headline?: string
+  /** Texto do corpo usado em problem / education */
+  body?: string
+  /** Estatística destacada usada em problem */
+  stat?: string
+  /** Label da estatística usada em problem */
+  stat_label?: string
+  /** Label superior pequeno acima do title (substitui o default tipo "O que ninguém te conta") */
+  section_label?: string
+  /** Título textual visível — quando título do slide é interno e não deve aparecer */
+  title_text?: string
+  /** Cards explicativos pro education layout cards */
+  items?: Array<{ step?: string; title?: string; body?: string }>
+  /** Passos pro timeline */
+  steps?: Array<{ label?: string; description?: string }>
+  /** Frase do testimonial */
+  quote?: string
+  /** Nome de quem deu o testimonial */
+  testimonial_name?: string
+  /** Detalhe extra do testimonial (tempo, valor, etc) */
+  testimonial_detail?: string
+  /** Stats grandes pro about */
+  stats?: Array<{ value?: string; label?: string }>
+  /** Linha de diferenciais pro about */
+  differentials?: string[]
 }
 
 // ============================================================================
